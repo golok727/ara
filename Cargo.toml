@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/ara", "crates/ara-math"]
+members = ["crates/ara", "crates/ara-math", "examples"]
 package.authors = ["Aadi <http://github.com/golok727>"]
 
 [workspace.dependencies]
