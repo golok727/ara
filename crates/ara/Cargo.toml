@@ -1,0 +1,36 @@
+[package]
+name = "ara"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/ara.rs"
+
+[dependencies]
+# Workspace 
+wgpu.workspace = true
+log.workspace = true
+thiserror.workspace = true
+parking_lot.workspace = true
+derive_more.workspace = true
+anyhow.workspace = true
+smallvec.workspace = true
+futures.workspace = true
+num-traits.workspace = true
+
+ara-math = { path = "../ara-math" }
+
+ahash = { version = "0.8.11", default-features = false, features = [
+    "no-rng",
+    "std",
+] }
+
+
+bytemuck = { version = "1.20.0", features = ["derive"] }
+# atlas allocation
+etagere = "0.2.13"
+# text 
+cosmic-text = "0.12.1"
+
+[features]
+default = []

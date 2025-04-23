@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = ["crates/ara", "crates/ara-math"]
+package.authors = ["Aadi <http://github.com/golok727>"]
+
+[workspace.dependencies]
+wgpu = "24.0.1"
+env_logger = "0.11.5"
+log = "0.4.22"
+thiserror = "2.0.3"
+slotmap = "1.0.7"
+derive_more = { version = "1.0.0", features = ["full"] }
+futures = "0.3.31"
+parking_lot = "0.12.3"
+flume = "0.11.1"
+image = "0.25.5"
+ahash = "0.8.11"
+parking = "2.2.1"
+anyhow = "1.0.95"
+smallvec = "1.13.2"
+num-traits = "0.2.19"
