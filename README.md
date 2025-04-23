@@ -1,13 +1,14 @@
 # Ara
-A 2D renderer
+A 2D rendering library built on top of wgpu.
 
-This is a fork of 2d renderer which is a successor of
-[Skie](https://github.com/golok727/saki/tree/main/skie)
+Ara is a fork of the 2D renderer, a successor to  
+[Skie](https://github.com/golok727/saki/tree/main/skie).
 
-This library is used by `FluteBrush` and is maintained in the `FluteBrush`
+This library is used and maintained by [@flutebrush](https://github.com/flutebrush)
 
+## Running Examples
+To run examples, use the following command:
 
-Run examples 
 ```bash
 cargo run -p ara-examples <example-name>
 ```
