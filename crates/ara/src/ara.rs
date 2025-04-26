@@ -1,6 +1,6 @@
 pub mod arc_string;
 pub mod canvas;
-mod earcut;
+pub mod earcut;
 pub mod gpu;
 pub mod paint;
 pub mod renderer;

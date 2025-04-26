@@ -11,9 +11,6 @@ pub mod stroke_tessellate;
 pub mod text;
 pub mod texture;
 
-// pub mod path;
-// pub use path::*;
-
 use crate::{ math::Vec2, text::GlyphImage };
 
 pub use atlas::*;

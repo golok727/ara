@@ -38,7 +38,7 @@ impl<'a> StrokeTessellator<'a> {
     }
 
     fn add_polyline(&mut self, points: &[Vec2<f32>], stroke_style: &StrokeStyle) {
-        if points.len() < 2 {
+        if points.len() < 2 || stroke_style.line_width == 0 || stroke_style.color.is_transparent() {
             return;
         }
 

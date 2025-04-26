@@ -54,7 +54,6 @@ impl<'a, PathIter> PathGeometryBuilder<'a, PathIter> where PathIter: Iterator<It
         self
     }
 
-    // todo adaptive
     fn calc_cubic_segments(from: Point, ctrl1: Point, ctrl2: Point, to: Point) -> u32 {
         let chord = (to - from).magnitude();
         let control_polygon =

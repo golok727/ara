@@ -13,8 +13,8 @@ impl Contour {
 pub struct PathBuilder {
     pub(crate) points: Vec<Point>,
     pub(crate) verbs: Vec<PathVerb>,
-    // pub crate for use in drawlist
     pub(crate) validator: DebugPathValidator,
+
     first: Point,
 }
 
@@ -25,6 +25,20 @@ impl PathBuilder {
             verbs: Vec::with_capacity(edges),
             ..Default::default()
         }
+    }
+
+    pub fn extend(&mut self, other: &Path) {
+        if other.points.is_empty() {
+            return;
+        }
+
+        #[cfg(debug_assertions)]
+        if self.validator.in_subpath {
+            panic!("Cannot extend path while in a subpath. Call end() or close() first.");
+        }
+
+        self.points.extend_from_slice(&other.points);
+        self.verbs.extend_from_slice(&other.verbs);
     }
 
     pub fn begin(&mut self, at: Point) {
@@ -109,6 +123,14 @@ impl PathBuilder {
         }
 
         self.end(polygon.closed)
+    }
+
+    pub fn triangle(&mut self, a: Point, b: Point, c: Point) -> Contour {
+        self.reserve(3, 0);
+        self.begin(a);
+        self.line_to(b);
+        self.line_to(c);
+        self.end(true)
     }
 
     pub fn rect(&mut self, rect: &Rect<f32>) -> Contour {

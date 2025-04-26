@@ -152,6 +152,11 @@ impl<'a> Iterator for PathEventsIter<'a> {
             None => None,
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.verbs.len();
+        (remaining, Some(remaining))
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]

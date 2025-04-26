@@ -2,7 +2,7 @@ use core::f32;
 use std::cell::RefCell;
 use std::ops::Range;
 
-use ara_math::{ Half, IsZero };
+use ara_math::{ IsZero, Mat3 };
 
 use super::{
     Brush,
@@ -20,20 +20,152 @@ use super::{
 use crate::earcut::Earcut;
 use crate::math::{ Rect, Vec2 };
 use crate::paint::WHITE_UV;
-use crate::{ get_path_bounds, Canvas, Contour, PathEventsIter, PathGeometryBuilder };
+use crate::{ get_path_bounds, Contour, PathEventsIter, PathGeometryBuilder };
 
 use std::ops::{ Deref, DerefMut };
 
 use crate::path::{ Path, PathBuilder, Point };
 
 #[derive(Default)]
-pub struct ScratchPathBuilder(PathBuilder);
+struct ScratchPathBuilder {
+    builder: PathBuilder,
+    temp_path_data: Vec<Point>,
+    earcut: Earcut<f32>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ShapeType {
+    Concave,
+    Convex,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum PathBuildMode {
+    Single,
+    Full,
+}
+
+enum AnyBrush<'a> {
+    Brush(&'a Brush),
+    Path(&'a PathBrush),
+}
+
+struct FillAndStrokeOptions<'a> {
+    brush: AnyBrush<'a>,
+    mesh: &'a mut Mesh,
+    feathering: f32,
+    shape_type: ShapeType,
+    textured: bool,
+    build_mode: PathBuildMode,
+}
 
 impl ScratchPathBuilder {
+    fn _fill(
+        mesh: &mut Mesh,
+        path: &[Point],
+        earcut: &mut Earcut<f32>,
+        brush: &Brush,
+        feathering: f32,
+        textured: bool,
+        shape_type: ShapeType
+    ) {
+        if brush.fill_style.color.is_transparent() {
+            return;
+        }
+
+        let fill_style = &brush.fill_style;
+        let stroke_color = brush.stroke_style.color;
+
+        match shape_type {
+            ShapeType::Convex => {
+                fill_path_convex(
+                    mesh,
+                    path,
+                    fill_style.color,
+                    textured,
+                    feathering,
+                    (!stroke_color.is_transparent()).then_some(stroke_color),
+                    |_| {}
+                );
+            }
+            ShapeType::Concave => {
+                fill_path_concave(mesh, path, earcut, fill_style, feathering, |_| {});
+            }
+        }
+    }
+
+    fn fill_and_stroke(
+        &mut self,
+        options: FillAndStrokeOptions,
+        map_points: Option<impl Fn(&mut [Point])>
+    ) {
+        let FillAndStrokeOptions { brush, feathering, shape_type, build_mode, mesh, textured } =
+            options;
+
+        let geometry: PathGeometryBuilder<_> = create_geometry_builder_for_path(
+            self.builder.path_events(),
+            &mut self.temp_path_data
+        ).with_auto_segments();
+
+        // Different handling based on build mode
+        match build_mode {
+            PathBuildMode::Single => {
+                let brush = match brush {
+                    AnyBrush::Brush(brush) => brush,
+                    AnyBrush::Path(path_brush) => &path_brush.get_or_default(&Contour::default()),
+                };
+
+                let feathering = if brush.antialias { feathering } else { 0.0 };
+
+                let range = expect_one_contour(geometry).1;
+
+                if let Some(map_points) = map_points {
+                    map_points(&mut self.temp_path_data[range.clone()]);
+                }
+
+                let path = &self.temp_path_data[range];
+
+                Self::_fill(mesh, path, &mut self.earcut, &brush, feathering, textured, shape_type);
+
+                StrokeTessellator::add_to_mesh(mesh, path, &brush.stroke_style);
+            }
+            PathBuildMode::Full => {
+                let geo_build = geometry.collect::<Vec<_>>();
+
+                for (contour, range) in geo_build {
+                    let brush = match brush {
+                        AnyBrush::Brush(brush) => brush,
+                        AnyBrush::Path(path_brush) => &path_brush.get_or_default(&contour),
+                    };
+
+                    let feathering = if brush.antialias { feathering } else { 0.0 };
+
+                    let points = &mut self.temp_path_data[range];
+
+                    if let Some(ref map_points) = map_points {
+                        map_points(points);
+                    }
+
+                    Self::_fill(
+                        mesh,
+                        points,
+                        &mut self.earcut,
+                        &brush,
+                        feathering,
+                        textured,
+                        shape_type
+                    );
+                    StrokeTessellator::add_to_mesh(mesh, points, &brush.stroke_style);
+                }
+            }
+        }
+    }
+
     #[inline(always)]
     fn clear(&mut self) {
         self.points.clear();
         self.verbs.clear();
+        self.temp_path_data.clear();
     }
 }
 
@@ -41,13 +173,13 @@ impl Deref for ScratchPathBuilder {
     type Target = PathBuilder;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.builder
     }
 }
 
 impl DerefMut for ScratchPathBuilder {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.builder
     }
 }
 
@@ -55,9 +187,7 @@ impl DerefMut for ScratchPathBuilder {
 pub struct DrawList {
     pub(crate) feathering_px: f32,
     pub(crate) mesh: Mesh,
-    pub(crate) temp_path: ScratchPathBuilder,
-    pub(crate) temp_path_data: Vec<Point>,
-    earcut: Earcut<f32>,
+    path: ScratchPathBuilder,
 }
 
 impl DrawList {
@@ -67,7 +197,7 @@ impl DrawList {
 
     pub fn clear(&mut self) {
         self.mesh.clear();
-        self.temp_path.clear();
+        self.path.clear();
     }
 
     #[inline]
@@ -103,102 +233,119 @@ impl DrawList {
         }
     }
 
-    pub fn add_quad(&mut self, quad: &Quad, brush: &Brush, textured: bool) {
-        let fill_color = brush.fill_style.color;
-        let stroke_color = brush.stroke_style.color;
+    pub fn add_quad(
+        &mut self,
+        quad: &Quad,
+        brush: &Brush,
+        textured: bool,
+        transform: Option<Mat3>
+    ) {
+        let has_no_corner_radius = quad.corners.is_zero();
 
-        self.temp_path.clear();
-        self.temp_path_data.clear();
+        self.path.clear();
 
-        let no_round = quad.corners.is_zero();
-
-        if no_round {
-            self.temp_path.rect(&quad.bounds);
+        if has_no_corner_radius {
+            self.path.rect(&quad.bounds);
         } else {
-            self.temp_path.round_rect(&quad.bounds, &quad.corners);
+            self.path.round_rect(&quad.bounds, &quad.corners);
         }
 
-        let feathering = self._get_feathering(brush);
-        let builder: PathGeometryBuilder<_> = create_geometry_builder_for_path(
-            self.temp_path.path_events(),
-            &mut self.temp_path_data
-        ).with_segments(0);
-
-        let range = expect_one_contour(builder).1;
-        let path = &self.temp_path_data[range];
-        fill_path_convex(
-            &mut self.mesh,
-            // don't include last point in fill
-            &path[..path.len() - 1],
-            fill_color,
-            textured,
-            feathering,
-            (!stroke_color.is_transparent()).then_some(stroke_color)
+        self.path.fill_and_stroke(
+            FillAndStrokeOptions {
+                brush: AnyBrush::Brush(brush),
+                mesh: &mut self.mesh,
+                feathering: self.feathering_px,
+                shape_type: ShapeType::Convex,
+                textured,
+                build_mode: PathBuildMode::Single,
+            },
+            Some(|path: &mut [Point]| {
+                if let Some(transform) = transform {
+                    if !transform.is_identity() {
+                        for point in path.iter_mut() {
+                            *point = transform * *point;
+                        }
+                    }
+                }
+            })
         );
-        StrokeTessellator::add_to_mesh(&mut self.mesh, path, &brush.stroke_style);
     }
 
-    pub fn add_circle(&mut self, circle: &Circle, brush: &Brush, textured: bool) {
-        let fill_color = brush.fill_style.color;
-        let stroke_color = brush.stroke_style.color;
+    pub fn add_circle(
+        &mut self,
+        circle: &Circle,
+        brush: &Brush,
+        textured: bool,
+        transform: Option<Mat3>
+    ) {
+        self.path.clear();
 
-        self.temp_path.clear();
-        self.temp_path_data.clear();
+        self.path.circle(circle.center, circle.radius);
 
-        self.temp_path.circle(circle.center, circle.radius);
-
-        let feathering = self._get_feathering(brush);
-
-        let builder: PathGeometryBuilder<_> = create_geometry_builder_for_path(
-            self.temp_path.path_events(),
-            &mut self.temp_path_data
-        ).with_segments(24);
-
-        let range = expect_one_contour(builder).1;
-        let path = &self.temp_path_data[range];
-        fill_path_convex(
-            &mut self.mesh,
-            // don't include last point in fill
-            &path[..path.len() - 1],
-            fill_color,
-            textured,
-            feathering,
-            (!stroke_color.is_transparent()).then_some(stroke_color)
+        self.path.fill_and_stroke(
+            FillAndStrokeOptions {
+                brush: AnyBrush::Brush(brush),
+                mesh: &mut self.mesh,
+                feathering: self.feathering_px,
+                shape_type: ShapeType::Convex,
+                textured,
+                build_mode: PathBuildMode::Single,
+            },
+            Some(|path: &mut [Point]| {
+                if let Some(transform) = transform {
+                    if !transform.is_identity() {
+                        for point in path.iter_mut() {
+                            *point = transform * *point;
+                        }
+                    }
+                }
+            })
         );
-        StrokeTessellator::add_to_mesh(&mut self.mesh, path, &brush.stroke_style);
     }
 
-    pub fn add_path(&mut self, path: &Path, brush: &PathBrush) {
-        self.temp_path_data.clear();
+    pub fn add_path(&mut self, path: &Path, brush: &PathBrush, transform: Option<Mat3>) {
+        self.path.clear();
+        self.path.extend(path);
 
-        let self_feathering = self.feathering_px;
-
-        build_path(path.events(), &mut self.temp_path_data, brush, |brush, points| {
-            let feathering = if brush.antialias { self_feathering } else { 0.0 };
-            // let is_closed = points.len() >= 3 && points.first() == points.last();
-            fill_path_concave(
-                points,
-                &mut self.mesh,
-                &mut self.earcut,
-                &brush.fill_style,
-                feathering
-            );
-
-            StrokeTessellator::add_to_mesh(&mut self.mesh, points, &brush.stroke_style);
-        });
+        self.path.fill_and_stroke(
+            FillAndStrokeOptions {
+                brush: AnyBrush::Path(brush),
+                mesh: &mut self.mesh,
+                feathering: self.feathering_px,
+                shape_type: ShapeType::Concave,
+                textured: false,
+                build_mode: PathBuildMode::Full,
+            },
+            Some(|path: &mut [Point]| {
+                if let Some(transform) = transform {
+                    if !transform.is_identity() {
+                        for point in path.iter_mut() {
+                            *point = transform * *point;
+                        }
+                    }
+                }
+            })
+        );
     }
 
-    pub fn add_primitive(&mut self, primitive: &Primitive, brush: &Brush, textured: bool) {
+    pub fn add_primitive(
+        &mut self,
+        primitive: &Primitive,
+        brush: &Brush,
+        textured: bool,
+        transform: Option<Mat3>
+    ) {
         match primitive {
-            Primitive::Circle(circle) => self.add_circle(circle, brush, textured),
+            Primitive::Circle(circle) => self.add_circle(circle, brush, textured, transform),
 
-            Primitive::Quad(quad) => self.add_quad(quad, brush, textured),
+            Primitive::Quad(quad) => self.add_quad(quad, brush, textured, transform),
 
-            Primitive::Path { path, brush } => self.add_path(path, brush),
+            Primitive::Path { path, brush } => self.add_path(path, brush, transform),
         }
     }
 
-    pub fn fill_rect(&mut self, rect: &Rect<f32>, color: Color) {
+    #[allow(unused)]
+    fn fill_rect(&mut self, rect: &Rect<f32>, color: Color) {
         if color.is_transparent() {
             return;
         }
@@ -216,7 +363,8 @@ impl DrawList {
         self.mesh.add_triangle(v_index_offset + 2, v_index_offset + 1, v_index_offset + 3);
     }
 
-    pub fn add_triangle_fan(
+    #[allow(unused)]
+    fn add_triangle_fan(
         &mut self,
         color: Color,
         connect_to: Vec2<f32>,
@@ -258,76 +406,158 @@ fn create_geometry_builder_for_path<'a>(
     PathGeometryBuilder::new(iter, out)
 }
 
-#[inline]
-pub fn build_path(
-    iter: PathEventsIter,
-    output: &mut Vec<Point>,
-    brush: &PathBrush,
-    mut f: impl FnMut(&Brush, &[Point])
-) {
-    let geo_build = <PathGeometryBuilder<PathEventsIter>>::new(iter, output).collect::<Vec<_>>();
-
-    for (contour, range) in geo_build {
-        let this_brush = brush.get_or_default(&contour);
-        f(&this_brush, &output[range.clone()]);
-    }
-}
-
 thread_local! {
     static TEMP_BUFFER: RefCell<Vec<Vec2<f32>>> = Default::default();
 }
 
-fn fill_path_concave(
-    points: &[Vec2<f32>],
+fn is_path_closed(path: &[Vec2<f32>]) -> bool {
+    if let (Some(first), Some(last)) = (path.first(), path.last()) { first == last } else { false }
+}
+
+pub fn fill_path_concave(
     mesh: &mut Mesh,
+    path: &[Vec2<f32>],
     earcut: &mut Earcut<f32>,
     fill_style: &FillStyle,
-    _feathering: f32
+    feathering: f32,
+    mut on_add: impl FnMut(Point)
 ) {
-    let points_count = points.len() as u32;
-    let fill = fill_style.color;
+    let points_count = {
+        let n = path.len() as u32;
 
+        if is_path_closed(path) {
+            n - 1
+        } else {
+            n
+        }
+    };
+
+    let fill = fill_style.color;
     if points_count < 3 || fill.is_transparent() {
         return;
     }
 
-    // Non-AA fill
-    let vertex_offset = mesh.vertices.len() as u32;
-    // No antialiasing: simple fill
-    mesh.reserve_prim(points_count as usize, ((points_count as usize) - 2) * 3);
+    let path = &path[..points_count as usize];
 
-    // Add vertices for the fill
-    mesh.vertices.extend(points.iter().map(|p| Vertex::new(*p, fill, WHITE_UV)));
+    if feathering > 0.0 {
+        let out_color = {
+            let mut c = fill_style.color;
+            c.a = 0;
+            c
+        };
 
-    // Perform earcut triangulation
-    earcut.earcut(
-        points.iter().map(|p| [p.x, p.y]),
-        &[],
-        &mut mesh.indices,
-        false
-    );
+        let idx_inner = mesh.vertices.len() as u32;
+        let idx_outer = idx_inner + 1;
 
-    // Adjust indices to account for vertex offset
-    for i in mesh.indices.iter_mut().skip(vertex_offset as usize) {
-        *i += vertex_offset;
+        mesh.reserve_prim(
+            2 * (points_count as usize), // 2 vertices per point (inner + outer)
+            ((points_count - 2) * 3 + points_count * 6) as usize // Fill triangles + 6 indices per edge for feathering
+        );
+
+        let mut temp_indices = <Vec<u32>>::new();
+        earcut.earcut(
+            path.iter().map(|p| [p.x, p.y]),
+            &[],
+            &mut temp_indices,
+            false
+        );
+
+        for triangle in temp_indices.chunks_exact(3) {
+            let [i0, i1, i2] = [triangle[0], triangle[1], triangle[2]];
+
+            let v0 = idx_inner + ((points_count - 1 - i0) % points_count) * 2;
+            let v1 = idx_inner + ((points_count - 1 - i1) % points_count) * 2;
+            let v2 = idx_inner + ((points_count - 1 - i2) % points_count) * 2;
+
+            mesh.add_triangle(v0, v1, v2);
+        }
+
+        TEMP_BUFFER.with_borrow_mut(|normals| {
+            normals.clear();
+            normals.reserve(points_count as usize);
+
+            // todo account for sharp angles
+
+            let mut i0 = points_count - 1;
+            for i1 in 0..points_count {
+                let p0 = path[i0 as usize];
+                let p1 = path[i1 as usize];
+                let edge = (p1 - p0).normalize().rot90();
+                normals.push(edge);
+                i0 = i1;
+            }
+
+            // The feathering:
+            let mut i0 = points_count - 1;
+            for i1 in 0..points_count {
+                let n0 = normals[i0 as usize];
+                let n1 = normals[i1 as usize];
+                let dm = (n0 + n1).normalize() * feathering * 0.5;
+                let p = path[i0 as usize];
+
+                let pos_inner = p - dm;
+                let pos_outer = p + dm;
+
+                on_add(pos_inner);
+                on_add(pos_outer);
+                mesh.add_vertex(pos_inner, fill, WHITE_UV);
+                mesh.add_vertex(pos_outer, out_color, WHITE_UV);
+
+                mesh.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
+                mesh.add_triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
+                i0 = i1;
+            }
+        });
+    } else {
+        // Non-AA fill
+        let vertex_offset = mesh.vertices.len() as u32;
+        let index_offset = mesh.indices.len();
+        // No antialiasing: simple fill
+        mesh.reserve_prim(points_count as usize, ((points_count as usize) - 2) * 3);
+
+        // Add vertices for the fill
+        mesh.vertices.extend(path.iter().map(|p| Vertex::new(*p, fill, WHITE_UV)));
+
+        // Perform earcut triangulation
+        earcut.earcut(
+            path.iter().map(|p| [p.x, p.y]),
+            &[],
+            &mut mesh.indices,
+            false
+        );
+
+        // Adjust indices to account for vertex offset
+        for i in mesh.indices.iter_mut().skip(index_offset) {
+            *i += vertex_offset;
+        }
     }
 }
 
-fn fill_path_convex(
+pub fn fill_path_convex(
     mesh: &mut Mesh,
     path: &[Point],
     fill: Color,
     textured: bool,
     feathering: f32,
-    fade_to: Option<Color>
+    fade_to: Option<Color>,
+    mut on_add: impl FnMut(Point)
 ) {
-    let points_count = path.len() as u32;
+    let points_count = {
+        let n = path.len() as u32;
+
+        if is_path_closed(path) {
+            n - 1
+        } else {
+            n
+        }
+    };
 
     if points_count < 3 || fill.is_transparent() {
         return;
     }
+    let path = &path[..points_count as usize];
 
-    debug_assert!(cw_signed_area(path) > 0.0, "Path should be convex and clockwise");
+    debug_assert!(cw_signed_area(path) > 0.0, "Path should be clockwise");
 
     let bounds = if textured { get_path_bounds(path) } else { Default::default() };
     let b_min = bounds.min();
@@ -377,12 +607,14 @@ fn fill_path_convex(
             for i1 in 0..points_count {
                 let n0 = normals[i0 as usize];
                 let n1 = normals[i1 as usize];
-                let dm = (n0 + n1) * feathering * 0.5;
-                let p1 = path[i0 as usize];
+                let dm = (n0 + n1).normalize() * feathering * 0.5;
+                let p = path[i0 as usize];
 
-                let pos_inner = p1 - dm;
-                let pos_outer = p1 + dm;
+                let pos_inner = p - dm;
+                let pos_outer = p + dm;
 
+                on_add(pos_inner);
+                on_add(pos_outer);
                 mesh.add_vertex(pos_inner, fill, get_uv(&pos_inner));
                 mesh.add_vertex(pos_outer, out_color, get_uv(&pos_outer));
                 mesh.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
@@ -395,7 +627,7 @@ fn fill_path_convex(
         let vtx_count = points_count;
 
         mesh.reserve_prim(vtx_count as usize, index_count as usize);
-        let base_idx = mesh.vertex_count();
+        let idx = mesh.vertex_count();
 
         for point in path {
             let uv = get_uv(point);
@@ -403,11 +635,7 @@ fn fill_path_convex(
         }
 
         for i in 2..points_count {
-            mesh.add_triangle(
-                base_idx, //
-                base_idx + i - 1, //
-                base_idx + i //
-            );
+            mesh.add_triangle(idx, idx + (i - 1), idx + i);
         }
     }
 }
@@ -424,55 +652,4 @@ fn cw_signed_area(path: &[Point]) -> f64 {
     } else {
         0.0
     }
-}
-
-pub fn fill_path_visualize(path: &[Point], canvas: &mut Canvas, feathering: f32) {
-    canvas.save();
-    let size = canvas.screen().map(|v| *v as f32);
-
-    canvas.translate(size.width.half(), size.height.half());
-    canvas.scale(2.0, 2.0);
-
-    let points_count = path.len() as u32;
-
-    if points_count < 3 {
-        return;
-    }
-
-    debug_assert!(cw_signed_area(path) > 0.0, "Path should be convex and clockwise");
-
-    for point in path {
-        canvas.draw_circle(point.x, point.y, 2.0, Brush::filled(Color::YELLOW));
-    }
-
-    if feathering > 0.0 {
-        let mut normals = Vec::with_capacity(points_count as usize);
-
-        let mut i0 = points_count - 1;
-        for i1 in 0..points_count {
-            let p0 = path[i0 as usize];
-            let p1 = path[i1 as usize];
-            let edge = (p1 - p0).normalize().rot90();
-            normals.push(edge);
-            i0 = i1;
-        }
-
-        // The feathering:
-        let mut i0 = points_count - 1;
-        for i1 in 0..points_count {
-            let n0 = normals[i0 as usize];
-            let n1 = normals[i1 as usize];
-            let dm = (n0 + n1) * feathering * 0.5;
-            let p1 = path[i0 as usize];
-
-            let pos_inner = p1 - dm;
-            let pos_outer = p1 + dm;
-
-            canvas.draw_circle(pos_inner.x, pos_inner.y, 2.0, Brush::filled(Color::RED));
-            canvas.draw_circle(pos_outer.x, pos_outer.y, 2.0, Brush::filled(Color::RED));
-            i0 = i1;
-        }
-    }
-
-    canvas.restore();
 }

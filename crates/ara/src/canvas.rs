@@ -33,7 +33,7 @@ use crate::{
 use ahash::HashSet;
 use anyhow::Result;
 use cosmic_text::{ Attrs, Buffer, Metrics, Shaping };
-use ara_math::{ vec2, Corners, Mat3, Vec2 };
+use ara_math::{ Corners, Mat3, Vec2 };
 use surface::{ CanvasSurface, CanvasSurfaceConfig };
 use wgpu::FilterMode;
 
@@ -89,7 +89,7 @@ pub struct Canvas {
 
 impl Canvas {
     // TODO make it configurable
-    const AA_SIZE: f32 = 1.0;
+    const AA_SIZE: f32 = 3.0;
 
     pub(super) fn new(
         surface_config: CanvasSurfaceConfig,
@@ -506,12 +506,15 @@ impl Canvas {
             };
 
             let build = |drawlist: &mut DrawList| {
-                drawlist.add_primitive(primitive, brush, !is_white_texture)
+                drawlist.add_primitive(
+                    primitive,
+                    brush,
+                    !is_white_texture,
+                    Some(canvas_state.transform)
+                )
             };
 
-            let identity_transform = canvas_state.transform.is_identity();
-
-            if identity_transform && info.is_none() {
+            if info.is_none() {
                 build(drawlist);
             } else {
                 drawlist.capture(build).map(|vertex| {
@@ -521,12 +524,6 @@ impl Canvas {
                         } else {
                             vertex.uv = info.uv_to_atlas_space(vertex.uv[0], vertex.uv[1]).into();
                         }
-                    }
-
-                    if !identity_transform {
-                        let pos =
-                            canvas_state.transform * vec2(vertex.position[0], vertex.position[1]);
-                        vertex.position = [pos.x, pos.y];
                     }
                 });
             }

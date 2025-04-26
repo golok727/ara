@@ -97,6 +97,11 @@ impl<'list> Iterator for RenderListIter<'list> {
             state: &item.state,
         })
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.stages_iter.len();
+        (len, Some(len))
+    }
 }
 
 #[cfg(test)]

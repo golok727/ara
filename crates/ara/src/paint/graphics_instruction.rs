@@ -113,6 +113,11 @@ impl<'a, TexMap> Iterator
         self.instruction_start = end;
         Some(batch)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.instructions.len() - self.instruction_start;
+        (remaining, Some(remaining))
+    }
 }
 
 pub struct InstructionBatch<'a> {
