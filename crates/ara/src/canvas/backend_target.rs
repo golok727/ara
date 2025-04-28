@@ -1,11 +1,11 @@
 use std::ops::Deref;
 
-use crate::canvas::surface::CanvasSurface;
-use crate::{Canvas, GpuContext};
+use crate::canvas::target::RenderTarget;
+use crate::{ Canvas, GpuContext };
 use anyhow::Result;
 use wgpu::SurfaceTexture;
 
-use super::surface::{create_mssa_view, CanvasSurfaceConfig};
+use super::target::{ create_msaa_view, RenderTargetConfig };
 
 #[derive(Debug, Clone)]
 pub struct GpuSurfaceSpecification {
@@ -28,15 +28,12 @@ impl<'a> Deref for BackendRenderTarget<'a> {
         &self.surface
     }
 }
-
-impl<'a> BackendRenderTarget<'a> {
-    fn new(
+impl<'window> BackendRenderTarget<'window> {
+    pub fn new(
         gpu: &GpuContext,
-        surface_target: impl Into<wgpu::SurfaceTarget<'a>>,
-        config: &CanvasSurfaceConfig,
+        surface: wgpu::Surface<'window>,
+        config: &RenderTargetConfig
     ) -> Result<Self> {
-        let surface = gpu.instance.create_surface(surface_target)?;
-
         let capabilities = surface.get_capabilities(&gpu.adapter);
 
         let surface_config = wgpu::SurfaceConfiguration {
@@ -56,7 +53,7 @@ impl<'a> BackendRenderTarget<'a> {
             surface,
             config: surface_config,
             msaa_sample_count: config.msaa_sample_count,
-            msaa_view: create_mssa_view(gpu, config),
+            msaa_view: create_msaa_view(&gpu, config),
         })
     }
 }
@@ -70,16 +67,14 @@ impl PaintedSurface {
     }
 }
 
-impl<'a> CanvasSurface for BackendRenderTarget<'a> {
+impl<'a> RenderTarget for BackendRenderTarget<'a> {
     type PaintOutput = PaintedSurface;
     const LABEL: &'static str = "BackendRenderTarget";
 
     fn paint(&mut self, canvas: &mut Canvas) -> Result<Self::PaintOutput> {
         let surface_texture = self.surface.get_current_texture()?;
 
-        let view = surface_texture
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
+        let view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let (view, resolve_target) = (self.msaa_sample_count > 1)
             .then_some(self.msaa_view.as_ref())
@@ -91,18 +86,18 @@ impl<'a> CanvasSurface for BackendRenderTarget<'a> {
         Ok(PaintedSurface(surface_texture))
     }
 
-    fn configure(&mut self, gpu: &GpuContext, config: &CanvasSurfaceConfig) {
+    fn configure(&mut self, gpu: &GpuContext, config: &RenderTargetConfig) {
         self.config.width = config.width;
         self.config.height = config.height;
         self.config.usage = config.usage | wgpu::TextureUsages::RENDER_ATTACHMENT;
         self.config.format = config.format;
 
-        self.msaa_view = create_mssa_view(gpu, config);
-        self.surface.configure(&gpu.device, &self.config);
+        self.msaa_view = create_msaa_view(&gpu, config);
+        self.surface.configure(&gpu, &self.config);
     }
 
-    fn get_config(&self) -> CanvasSurfaceConfig {
-        CanvasSurfaceConfig {
+    fn get_config(&self) -> RenderTargetConfig {
+        RenderTargetConfig {
             width: self.config.width,
             height: self.config.height,
             format: self.config.format,
@@ -115,8 +110,8 @@ impl<'a> CanvasSurface for BackendRenderTarget<'a> {
 impl Canvas {
     pub fn create_backend_target<'window>(
         &self,
-        surface_target: impl Into<wgpu::SurfaceTarget<'window>>,
+        surface: wgpu::Surface<'window>
     ) -> Result<BackendRenderTarget<'window>> {
-        BackendRenderTarget::new(self.renderer.gpu(), surface_target, &self.surface_config)
+        BackendRenderTarget::new(self.renderer.gpu(), surface, &self.surface_config)
     }
 }

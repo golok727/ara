@@ -35,7 +35,12 @@ fn main() {
             std::process::exit(1);
         });
 
-    let gpu = ara::GpuContext::new().block_on().expect("Failed to create GPU context");
+    let instance = GpuContext::create_instance(&ara::gpu::InstanceDescriptor::default());
+
+    let gpu = ara::GpuContext
+        ::new(instance, &Default::default())
+        .block_on()
+        .expect("Failed to create GPU context");
 
     println!("Running example: {}", example.name);
     (example.run)(gpu);

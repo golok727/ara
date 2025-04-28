@@ -4,13 +4,13 @@ use wgpu::{ TextureFormat, TextureUsages };
 
 use crate::{ renderer::create_ara_renderer, GpuContext, Renderer2DSpecs, AraAtlas, TextSystem };
 
-use super::{ surface::CanvasSurfaceConfig, Canvas };
+use super::{ target::RenderTargetConfig, Canvas };
 
 #[derive(Default)]
 pub struct CanvasBuilder {
     pub(super) texture_atlas: Option<Arc<AraAtlas>>,
     pub(super) text_system: Option<Arc<TextSystem>>,
-    pub(super) surface_config: CanvasSurfaceConfig,
+    pub(super) surface_config: RenderTargetConfig,
 }
 
 impl CanvasBuilder {

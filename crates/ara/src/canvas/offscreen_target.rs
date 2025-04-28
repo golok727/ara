@@ -1,50 +1,46 @@
-use crate::{ canvas::surface::create_mssa_view, GpuContext };
+use crate::{ canvas::target::create_msaa_view, GpuContext };
 
-use super::{
-    snapshot::CanvasSnapshotSource,
-    surface::{ CanvasSurface, CanvasSurfaceConfig },
-    Canvas,
-};
+use super::{ snapshot::CanvasSnapshotSource, target::{ RenderTarget, RenderTargetConfig }, Canvas };
 use anyhow::Result;
 
 pub struct OffscreenRenderTarget {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
     msaa_sample_count: u32,
-    mssa_view: Option<wgpu::TextureView>,
+    msaa_view: Option<wgpu::TextureView>,
 }
 
 impl OffscreenRenderTarget {
-    pub(super) fn new(gpu: &GpuContext, config: &CanvasSurfaceConfig) -> Self {
-        let texture = create_fb_texture(gpu, config);
+    pub(super) fn new(gpu: &GpuContext, config: &RenderTargetConfig) -> Self {
+        let texture = create_framebuffer_texture(gpu, config);
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         Self {
             texture,
             view,
             msaa_sample_count: config.msaa_sample_count,
-            mssa_view: create_mssa_view(gpu, config),
+            msaa_view: create_msaa_view(&gpu.device, config),
         }
     }
 }
 
-impl CanvasSurface for OffscreenRenderTarget {
+impl RenderTarget for OffscreenRenderTarget {
     type PaintOutput = ();
     const LABEL: &'static str = "OffscreenRenderTarget";
 
-    fn configure(&mut self, gpu: &GpuContext, config: &CanvasSurfaceConfig) {
+    fn configure(&mut self, gpu: &GpuContext, config: &RenderTargetConfig) {
         debug_assert!(config.width != 0, "Got zero width");
         debug_assert!(config.height != 0, "Got zero height");
 
-        let texture = create_fb_texture(gpu, config);
+        let texture = create_framebuffer_texture(gpu, config);
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        self.mssa_view = create_mssa_view(gpu, config);
+        self.msaa_view = create_msaa_view(&gpu, config);
         self.texture = texture;
         self.view = view;
     }
 
-    fn get_config(&self) -> CanvasSurfaceConfig {
-        CanvasSurfaceConfig {
+    fn get_config(&self) -> RenderTargetConfig {
+        RenderTargetConfig {
             width: self.texture.width(),
             height: self.texture.height(),
             format: self.texture.format(),
@@ -55,7 +51,7 @@ impl CanvasSurface for OffscreenRenderTarget {
 
     fn paint(&mut self, canvas: &mut Canvas) -> Result<Self::PaintOutput> {
         let (view, resolve_target) = (self.msaa_sample_count > 1)
-            .then_some(self.mssa_view.as_ref())
+            .then_some(self.msaa_view.as_ref())
             .flatten()
             .map_or((&self.view, None), |texture_view| { (texture_view, Some(&self.view)) });
 
@@ -76,7 +72,7 @@ impl CanvasSnapshotSource for OffscreenRenderTarget {
     }
 }
 
-fn create_fb_texture(gpu: &GpuContext, config: &CanvasSurfaceConfig) -> wgpu::Texture {
+fn create_framebuffer_texture(gpu: &GpuContext, config: &RenderTargetConfig) -> wgpu::Texture {
     gpu.create_texture(
         &(wgpu::TextureDescriptor {
             label: Some("framebuffer"),

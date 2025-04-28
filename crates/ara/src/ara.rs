@@ -43,7 +43,7 @@ pub use canvas::{
     backend_target::BackendRenderTarget,
     offscreen_target::OffscreenRenderTarget,
     snapshot::{ CanvasSnapshot, CanvasSnapshotResult, CanvasSnapshotSource },
-    surface::CanvasSurface,
+    target::RenderTarget,
 };
 pub use paint::{
     GpuTexture,

@@ -9,13 +9,20 @@ use crate::{ LineJoin, Vec2 };
 
 use super::{ LineCap, Mesh, StrokeStyle, WHITE_UV };
 
+/*
+TODO
+
+- [] support antialiasing
+- [] support line dash
+
+*/
+
 #[derive(Debug)]
 pub struct StrokeTessellator<'a> {
     mesh: StrokeTessellatorMesh<'a>,
 }
 
 impl<'a> StrokeTessellator<'a> {
-    // todo take in iterator for points instead
     pub fn add_to_mesh(mesh: &'a mut Mesh, points: &[Vec2<f32>], stroke_style: &StrokeStyle) {
         let mut polyline = Self {
             mesh: StrokeTessellatorMesh::Borrowed(mesh),

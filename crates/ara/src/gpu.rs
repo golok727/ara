@@ -1,5 +1,7 @@
 pub mod error;
 
+use std::ops::Deref;
+
 pub use error::*;
 
 pub use wgpu::*;
@@ -12,32 +14,64 @@ pub struct GpuContext {
     pub adapter: wgpu::Adapter,
 }
 
-impl GpuContext {
-    // TODO: allow config
-    pub async fn new() -> Result<Self, error::GpuContextCreateError> {
-        let instance = wgpu::Instance::default();
+impl Deref for GpuContext {
+    type Target = wgpu::Device;
 
+    fn deref(&self) -> &Self::Target {
+        &self.device
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct GpuContextCreateOptions<'a, 'window> {
+    pub backends: wgpu::Backends,
+    pub power_preference: wgpu::PowerPreference,
+    pub compatible_surface: Option<&'a wgpu::Surface<'window>>,
+}
+
+impl GpuContext {
+    pub fn create_instance(desc: &wgpu::InstanceDescriptor) -> wgpu::Instance {
+        wgpu::Instance::new(desc)
+    }
+
+    pub async fn create_instance_with_wgpu_detection(
+        desc: &wgpu::InstanceDescriptor
+    ) -> wgpu::Instance {
+        wgpu::util::new_instance_with_webgpu_detection(desc).await
+    }
+
+    async fn create_gpu_context<'a, 'window>(
+        instance: wgpu::Instance,
+        options: &GpuContextCreateOptions<'a, 'window>
+    ) -> Result<Self, error::GpuContextCreateError> {
         let adapter = instance
             .request_adapter(
                 &(wgpu::RequestAdapterOptions {
-                    power_preference: wgpu::PowerPreference::default(),
+                    power_preference: options.power_preference,
                     force_fallback_adapter: false,
-                    compatible_surface: None,
+                    compatible_surface: options.compatible_surface,
                 })
             ).await
-            .ok_or(error::GpuContextCreateError::AdapterMissing)?;
+            .map_err(|err| error::GpuContextCreateError::RequestAdapterError(err))?;
+
+        let adapter_info = adapter.get_info();
+        log::info!("Adapter: {:?}", adapter_info);
 
         let (device, queue) = adapter
             .request_device(
                 &(wgpu::DeviceDescriptor {
-                    label: Some("GPUContext device"),
+                    label: Some("ara device"),
                     required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits
-                        ::downlevel_webgl2_defaults()
-                        .using_resolution(adapter.limits()),
+                    required_limits: (
+                        if cfg!(target_arch = "wasm32") {
+                            wgpu::Limits::downlevel_webgl2_defaults()
+                        } else {
+                            wgpu::Limits::default()
+                        }
+                    ).using_resolution(adapter.limits()),
                     memory_hints: wgpu::MemoryHints::MemoryUsage,
-                }),
-                None
+                    ..Default::default()
+                })
             ).await
             .map_err(error::GpuContextCreateError::RequestDeviceError)?;
 
@@ -47,6 +81,13 @@ impl GpuContext {
             instance,
             adapter,
         })
+    }
+
+    pub async fn new<'a, 'window>(
+        instance: wgpu::Instance,
+        options: &GpuContextCreateOptions<'a, 'window>
+    ) -> Result<Self, error::GpuContextCreateError> {
+        Self::create_gpu_context(instance, options).await
     }
 
     pub fn create_command_encoder(&self, label: Option<&str>) -> wgpu::CommandEncoder {
@@ -65,10 +106,6 @@ impl GpuContext {
             label: Some(label),
             source: wgpu::ShaderSource::Wgsl(source.into()),
         })
-    }
-
-    pub fn create_texture(&self, descriptor: &wgpu::TextureDescriptor) -> wgpu::Texture {
-        self.device.create_texture(descriptor)
     }
 
     pub fn create_texture_init(

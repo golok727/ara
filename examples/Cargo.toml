@@ -2,7 +2,6 @@
 name = "ara-examples"
 version = "0.1.0"
 edition = "2021"
-authors.workspace = true
 
 [dependencies]
 ara = { path = "../crates/ara" }

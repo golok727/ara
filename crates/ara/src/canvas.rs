@@ -34,7 +34,7 @@ use ahash::HashSet;
 use anyhow::Result;
 use cosmic_text::{ Attrs, Buffer, Metrics, Shaping };
 use ara_math::{ Corners, Mat3, Vec2 };
-use surface::{ CanvasSurface, CanvasSurfaceConfig };
+use target::{ RenderTarget, RenderTargetConfig };
 use wgpu::FilterMode;
 
 pub mod backend_target;
@@ -42,7 +42,7 @@ pub mod builder;
 pub mod offscreen_target;
 pub mod render_list;
 pub mod snapshot;
-pub mod surface;
+pub mod target;
 
 use render_list::RenderList;
 
@@ -69,7 +69,7 @@ pub struct Canvas {
     // - allow rendering in another thread
     pub renderer: Renderer2D,
 
-    pub(crate) surface_config: CanvasSurfaceConfig,
+    pub(crate) surface_config: RenderTargetConfig,
 
     list: RenderList,
     texture_atlas: Arc<AraAtlas>,
@@ -92,7 +92,7 @@ impl Canvas {
     const AA_SIZE: f32 = 3.0;
 
     pub(super) fn new(
-        surface_config: CanvasSurfaceConfig,
+        surface_config: RenderTargetConfig,
         renderer: Renderer2D,
         texture_atlas: Arc<AraAtlas>,
         text_system: Arc<TextSystem>
@@ -367,7 +367,7 @@ impl Canvas {
     }
 
     pub fn render<Surface, Output>(&mut self, surface: &mut Surface) -> Result<Output>
-        where Surface: CanvasSurface<PaintOutput = Output>
+        where Surface: RenderTarget<PaintOutput = Output>
     {
         if surface.get_config() != self.surface_config {
             log::trace!("{}: surface.configure() ran", Surface::LABEL);

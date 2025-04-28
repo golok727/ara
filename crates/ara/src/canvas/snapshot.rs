@@ -2,7 +2,7 @@ use anyhow::{ bail, Result };
 
 use futures::channel::oneshot::{ self };
 use ara_math::Size;
-use wgpu::{ BufferAsyncError, Maintain, TextureUsages };
+use wgpu::{ BufferAsyncError, PollType, TextureUsages };
 
 use crate::GpuContext;
 
@@ -61,12 +61,12 @@ impl Canvas {
     ) -> CanvasSnapshotResult {
         let receiver = source.read_texture_data_async(self)?;
 
-        self.renderer.gpu().device.poll(Maintain::Wait);
+        self.renderer.gpu().device.poll(PollType::Wait)?;
 
         futures::executor::block_on(receiver)?
     }
 
-    // asyncronously receive a snapshot
+    // asynchronously receive a snapshot
     pub async fn snapshot<Source: CanvasSnapshotSource>(
         &self,
         source: &Source
@@ -75,7 +75,11 @@ impl Canvas {
 
         let receiver = source.read_texture_data_async(self)?;
 
-        while !gpu.device.poll(wgpu::Maintain::Poll).is_queue_empty() {}
+        while let Ok(status) = gpu.device.poll(PollType::Wait) {
+            if status == wgpu::PollStatus::QueueEmpty {
+                break;
+            }
+        }
 
         receiver.await?
     }

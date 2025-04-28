@@ -4,7 +4,7 @@ members = ["crates/ara", "crates/ara-math", "examples"]
 package.authors = ["Aadi <http://github.com/golok727>"]
 
 [workspace.dependencies]
-wgpu = "24.0.1"
+wgpu = "25"
 env_logger = "0.11.5"
 log = "0.4.22"
 thiserror = "2.0.3"

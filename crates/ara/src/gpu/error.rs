@@ -2,8 +2,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
 pub enum GpuContextCreateError {
-    #[error("wgpu: unable to get adapter")]
+    #[error("Error Creating Context: No suitable adapter found")]
     AdapterMissing,
-    #[error("wgpu: request device error ({0})")]
-    RequestDeviceError(wgpu::RequestDeviceError),
+    #[error("Error Creating Context: ({0})")] RequestDeviceError(wgpu::RequestDeviceError),
+    #[error("Error Creating Context:  ({0})")] RequestAdapterError(wgpu::RequestAdapterError),
 }
