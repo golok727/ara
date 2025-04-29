@@ -151,9 +151,15 @@ pub struct Renderer2D {
     texture_bindgroup_layout: wgpu::BindGroupLayout,
 }
 
+fn get_proj_matrix(width: u32, height: u32) -> Mat3 {
+    let mut proj = Mat3::ortho(0.0, 0.0, height as f32, width as f32);
+    proj.transpose();
+    proj
+}
+
 impl Renderer2D {
     pub fn new(gpu: GpuContext, specs: &Renderer2DSpecs) -> Self {
-        let proj = Mat3::ortho(0.0, 0.0, specs.height as f32, specs.width as f32);
+        let proj = get_proj_matrix(specs.width, specs.height);
 
         let global_uniforms = GlobalUniformsBuffer::new(&gpu, GlobalUniformData {
             proj: proj.into(),
@@ -225,7 +231,7 @@ impl Renderer2D {
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
-        let proj = Mat3::ortho(0.0, 0.0, height as f32, width as f32);
+        let proj = get_proj_matrix(width, height);
 
         self.size.width = width;
         self.size.height = height;

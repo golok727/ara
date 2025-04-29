@@ -24,7 +24,6 @@ impl Deref for GpuContext {
 
 #[derive(Debug, Default)]
 pub struct GpuContextCreateOptions<'a, 'window> {
-    pub backends: wgpu::Backends,
     pub power_preference: wgpu::PowerPreference,
     pub compatible_surface: Option<&'a wgpu::Surface<'window>>,
 }
@@ -55,22 +54,18 @@ impl GpuContext {
             .map_err(|err| error::GpuContextCreateError::RequestAdapterError(err))?;
 
         let adapter_info = adapter.get_info();
-        log::info!("Adapter: {:?}", adapter_info);
+        log::info!("Adapter: {:#?}", adapter_info);
 
         let (device, queue) = adapter
             .request_device(
                 &(wgpu::DeviceDescriptor {
                     label: Some("ara device"),
                     required_features: wgpu::Features::empty(),
-                    required_limits: (
-                        if cfg!(target_arch = "wasm32") {
-                            wgpu::Limits::downlevel_webgl2_defaults()
-                        } else {
-                            wgpu::Limits::default()
-                        }
-                    ).using_resolution(adapter.limits()),
+                    required_limits: wgpu::Limits
+                        ::downlevel_webgl2_defaults()
+                        .using_resolution(adapter.limits()),
                     memory_hints: wgpu::MemoryHints::MemoryUsage,
-                    ..Default::default()
+                    trace: wgpu::Trace::Off,
                 })
             ).await
             .map_err(error::GpuContextCreateError::RequestDeviceError)?;

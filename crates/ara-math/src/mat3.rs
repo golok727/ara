@@ -82,12 +82,12 @@ impl Mat3 {
 
     #[inline]
     pub fn translate_x(&mut self, dx: f32) -> &mut Self {
-        self.translate(dx, 0.)
+        self.translate(dx, 0.0)
     }
 
     #[inline]
     pub fn translate_y(&mut self, dy: f32) -> &mut Self {
-        self.translate(0., dy)
+        self.translate(0.0, dy)
     }
 
     pub fn rotate(&mut self, angle: f32) -> &mut Self {
@@ -104,12 +104,12 @@ impl Mat3 {
 
     #[inline]
     pub fn scale_x(&mut self, sx: f32) -> &mut Self {
-        self.scale(sx, 1.)
+        self.scale(sx, 1.0)
     }
 
     #[inline]
     pub fn scale_y(&mut self, sy: f32) -> &mut Self {
-        self.scale(1., sy)
+        self.scale(1.0, sy)
     }
 
     pub fn transpose(&mut self) -> &mut Self {
@@ -154,8 +154,9 @@ impl Mat3 {
         // | g h i |
         // det = a(ei - fh) - b(di - fg) + c(dh - eg)
 
-        m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6])
-            + m[2] * (m[3] * m[7] - m[4] * m[6])
+        m[0] * (m[4] * m[8] - m[5] * m[7]) -
+            m[1] * (m[3] * m[8] - m[5] * m[6]) +
+            m[2] * (m[3] * m[7] - m[4] * m[6])
     }
 
     pub fn is_identity(&self) -> bool {

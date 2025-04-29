@@ -19,14 +19,12 @@ struct VertexOut {
 
 @vertex fn vs(in: VertexIn) -> VertexOut {
     var out: VertexOut;
-    let proj = transpose(globals.proj);
-    out.position = proj * vec4f(in.position, 1.0, 1.0);
+    out.position = globals.proj * vec4f(in.position, 1.0, 1.0);
     out.uv = in.uv;
     out.color = in.color;
     return out;
 }
 
-// TODO add polychrome and monochrome
 @group(1) @binding(0) var tex: texture_2d<f32>;
 @group(1) @binding(1) var tex_sampler: sampler;
 
@@ -35,10 +33,13 @@ struct VertexOut {
     return in.color * tex_color;
 }
 
+// mainly used for rendering text
 @fragment
 fn fs_mono(in: VertexOut) -> @location(0) vec4f {
     let tex_color = textureSample(tex, tex_sampler, in.uv);
-    return in.color * tex_color.r;
+    var color = in.color; 
+    color.a = tex_color.r * in.color.a;
+    return color;
 }
 
 
