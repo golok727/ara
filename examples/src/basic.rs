@@ -10,7 +10,7 @@ pub fn run(gpu: Context) {
             .add_surface_usage(gpu::TextureUsages::COPY_SRC)
     );
 
-    let mut context = canvas.create_offscreen_target();
+    let mut context = canvas.create_offscreen_context();
 
     let size = canvas.screen().map(|v| *v as f32);
 

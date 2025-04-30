@@ -1,11 +1,11 @@
 use std::ops::Deref;
 
 use crate::canvas::render_context::RenderContext;
-use crate::{Canvas, Context};
+use crate::{ Canvas, Context };
 use anyhow::Result;
 use wgpu::SurfaceTexture;
 
-use super::render_context::{create_msaa_view, RenderContextConfig};
+use super::render_context::{ create_msaa_view, RenderContextConfig };
 
 #[derive(Debug, Clone)]
 pub struct GpuSurfaceSpecification {
@@ -14,25 +14,25 @@ pub struct GpuSurfaceSpecification {
 }
 
 #[derive(Debug)]
-pub struct BackendRenderContext<'a> {
+pub struct BackendRenderingContext<'a> {
     surface: wgpu::Surface<'a>,
     config: wgpu::SurfaceConfiguration,
     msaa_sample_count: u32,
     msaa_view: Option<wgpu::TextureView>,
 }
 
-impl<'a> Deref for BackendRenderContext<'a> {
+impl<'a> Deref for BackendRenderingContext<'a> {
     type Target = wgpu::Surface<'a>;
 
     fn deref(&self) -> &Self::Target {
         &self.surface
     }
 }
-impl<'window> BackendRenderContext<'window> {
+impl<'window> BackendRenderingContext<'window> {
     pub fn new(
         gpu: &Context,
         surface: wgpu::Surface<'window>,
-        config: &RenderContextConfig,
+        config: &RenderContextConfig
     ) -> Result<Self> {
         let capabilities = surface.get_capabilities(&gpu.adapter);
 
@@ -67,16 +67,14 @@ impl PaintedSurface {
     }
 }
 
-impl RenderContext for BackendRenderContext<'_> {
+impl RenderContext for BackendRenderingContext<'_> {
     type PaintOutput = ();
     const LABEL: &'static str = "BackendRenderContext";
 
     fn paint(&mut self, canvas: &mut Canvas) -> Result<Self::PaintOutput> {
         let surface_texture = self.surface.get_current_texture()?;
 
-        let view = surface_texture
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
+        let view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let (view, resolve_target) = (self.msaa_sample_count > 1)
             .then_some(self.msaa_view.as_ref())
@@ -112,10 +110,10 @@ impl RenderContext for BackendRenderContext<'_> {
 }
 
 impl Canvas {
-    pub fn create_backend_target<'window>(
+    pub fn create_backend_context<'window>(
         &self,
-        surface: wgpu::Surface<'window>,
-    ) -> Result<BackendRenderContext<'window>> {
-        BackendRenderContext::new(self.renderer.gpu(), surface, &self.context_cfg)
+        surface: wgpu::Surface<'window>
+    ) -> Result<BackendRenderingContext<'window>> {
+        BackendRenderingContext::new(self.renderer.gpu(), surface, &self.context_cfg)
     }
 }

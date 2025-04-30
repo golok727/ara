@@ -30,7 +30,7 @@ pub fn create_instance(desc: &wgpu::InstanceDescriptor) -> wgpu::Instance {
 }
 
 pub async fn create_instance_with_wgpu_detection(
-    desc: &wgpu::InstanceDescriptor
+    desc: &wgpu::InstanceDescriptor,
 ) -> wgpu::Instance {
     wgpu::util::new_instance_with_webgpu_detection(desc).await
 }
@@ -46,13 +46,13 @@ impl Context {
     // On wasm we need to have a canvas to create an adapter if using webgl so we decided to only allow to create a context when a canvas is provided use `new_web`
     // #[cfg(not(target_arch = "wasm32"))]
     pub async fn new<'a, 'window>(
-        options: &ContextSpecification<'a, 'window>
+        options: &ContextSpecification<'a, 'window>,
     ) -> Result<Self, error::GpuContextCreateError> {
         let instance = Instance::new(
             &(wgpu::InstanceDescriptor {
                 backends: options.backends,
                 ..Default::default()
-            })
+            }),
         );
 
         Self::create(instance, options).await
@@ -60,7 +60,7 @@ impl Context {
 
     pub(crate) async fn create<'a, 'window>(
         instance: wgpu::Instance,
-        specs: &ContextSpecification<'a, 'window>
+        specs: &ContextSpecification<'a, 'window>,
     ) -> Result<Self, error::GpuContextCreateError> {
         let adapter = instance
             .request_adapter(
@@ -68,8 +68,9 @@ impl Context {
                     power_preference: specs.power_preference,
                     force_fallback_adapter: false,
                     compatible_surface: specs.compatible_surface,
-                })
-            ).await
+                }),
+            )
+            .await
             .map_err(error::GpuContextCreateError::RequestAdapterError)?;
 
         let adapter_info = adapter.get_info();
@@ -80,13 +81,13 @@ impl Context {
                 &(wgpu::DeviceDescriptor {
                     label: Some("ara device"),
                     required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits
-                        ::downlevel_webgl2_defaults()
+                    required_limits: wgpu::Limits::downlevel_webgl2_defaults()
                         .using_resolution(adapter.limits()),
                     memory_hints: wgpu::MemoryHints::MemoryUsage,
                     trace: wgpu::Trace::Off,
-                })
-            ).await
+                }),
+            )
+            .await
             .map_err(error::GpuContextCreateError::RequestDeviceError)?;
 
         Ok(Self {
@@ -98,21 +99,24 @@ impl Context {
     }
 
     pub fn create_command_encoder(&self, label: Option<&str>) -> wgpu::CommandEncoder {
-        self.device.create_command_encoder(&(wgpu::CommandEncoderDescriptor { label }))
+        self.device
+            .create_command_encoder(&(wgpu::CommandEncoderDescriptor { label }))
     }
 
     pub fn create_shader(&self, source: &str) -> wgpu::ShaderModule {
-        self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: None,
-            source: wgpu::ShaderSource::Wgsl(source.into()),
-        })
+        self.device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: None,
+                source: wgpu::ShaderSource::Wgsl(source.into()),
+            })
     }
 
     pub fn create_shader_labeled(&self, source: &str, label: &str) -> wgpu::ShaderModule {
-        self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some(label),
-            source: wgpu::ShaderSource::Wgsl(source.into()),
-        })
+        self.device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some(label),
+                source: wgpu::ShaderSource::Wgsl(source.into()),
+            })
     }
 
     pub fn create_texture_init(
@@ -120,7 +124,7 @@ impl Context {
         format: wgpu::TextureFormat,
         width: u32,
         height: u32,
-        data: &[u8]
+        data: &[u8],
     ) -> wgpu::Texture {
         Self::create_texture_init_impl(&self.device, &self.queue, format, width, height, data)
     }
@@ -132,7 +136,7 @@ impl Context {
                 mapped_at_creation: false,
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 size,
-            })
+            }),
         )
     }
 
@@ -143,7 +147,7 @@ impl Context {
                 mapped_at_creation: false,
                 usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
                 size,
-            })
+            }),
         )
     }
 
@@ -154,7 +158,7 @@ impl Context {
         format: wgpu::TextureFormat,
         width: u32,
         height: u32,
-        data: &[u8]
+        data: &[u8],
     ) -> wgpu::Texture {
         let texture_size = wgpu::Extent3d {
             width,
@@ -172,7 +176,7 @@ impl Context {
                 format,
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                 view_formats: &[],
-            })
+            }),
         );
 
         queue.write_texture(
@@ -188,7 +192,7 @@ impl Context {
                 bytes_per_row: Some(4 * width),
                 rows_per_image: None,
             },
-            texture_size
+            texture_size,
         );
 
         texture
