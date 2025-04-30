@@ -58,6 +58,7 @@ dependencies = [
  "parking_lot",
  "smallvec",
  "thiserror 2.0.12",
+ "web-sys",
  "wgpu",
 ]
 

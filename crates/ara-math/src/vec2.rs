@@ -1,6 +1,9 @@
-use std::{ fmt::Display, ops::{ self, Add, Mul, Sub } };
+use std::{
+    fmt::Display,
+    ops::{self, Add, Mul, Sub},
+};
 
-use crate::traits::{ Half, IsZero, One, Zero };
+use crate::traits::{Half, IsZero, One, Zero};
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -16,13 +19,19 @@ impl<T> Vec2<T> {
     }
 }
 
-impl<T> Display for Vec2<T> where T: Display {
+impl<T> Display for Vec2<T>
+where
+    T: Display,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{{ x: {}, y: {} }}", &self.x, &self.y)
     }
 }
 
-impl<T> Vec2<T> where T: Clone + PartialOrd {
+impl<T> Vec2<T>
+where
+    T: Clone + PartialOrd,
+{
     pub fn max(&self, other: &Self) -> Self {
         Self {
             x: if self.x > other.x {
@@ -58,7 +67,10 @@ impl<T> Vec2<T> where T: Clone + PartialOrd {
     }
 }
 
-impl<T> Vec2<T> where T: Clone + Add<T, Output = T> + ops::Neg<Output = T> {
+impl<T> Vec2<T>
+where
+    T: Clone + Add<T, Output = T> + ops::Neg<Output = T>,
+{
     pub fn normal(&self) -> Self {
         Vec2 {
             x: -self.y.clone(),
@@ -70,7 +82,10 @@ impl<T> Vec2<T> where T: Clone + Add<T, Output = T> + ops::Neg<Output = T> {
     }
 }
 
-impl<T> ops::Neg for Vec2<T> where T: Clone + Add<T, Output = T> + ops::Neg<Output = T> {
+impl<T> ops::Neg for Vec2<T>
+where
+    T: Clone + Add<T, Output = T> + ops::Neg<Output = T>,
+{
     type Output = Self;
 
     fn neg(self) -> Self::Output {
@@ -81,13 +96,19 @@ impl<T> ops::Neg for Vec2<T> where T: Clone + Add<T, Output = T> + ops::Neg<Outp
     }
 }
 
-impl<T> Vec2<T> where T: Clone + Add<T, Output = T> + Mul<T, Output = T> {
+impl<T> Vec2<T>
+where
+    T: Clone + Add<T, Output = T> + Mul<T, Output = T>,
+{
     pub fn dot(&self, other: &Self) -> T {
         self.x.clone() * other.x.clone() + self.y.clone() * other.y.clone()
     }
 }
 
-impl<T> Vec2<T> where T: Clone + Add<T, Output = T> + Mul<T, Output = T> + Sub<T, Output = T> {
+impl<T> Vec2<T>
+where
+    T: Clone + Add<T, Output = T> + Mul<T, Output = T> + Sub<T, Output = T>,
+{
     pub fn cross(&self, other: &Self) -> T {
         self.x.clone() * other.y.clone() - self.y.clone() * other.x.clone()
     }
@@ -105,7 +126,10 @@ impl<T> From<Vec2<T>> for (T, T) {
     }
 }
 
-impl<T> From<[T; 2]> for Vec2<T> where T: Clone {
+impl<T> From<[T; 2]> for Vec2<T>
+where
+    T: Clone,
+{
     fn from(arr: [T; 2]) -> Self {
         Self {
             x: arr[0].clone(),
@@ -126,7 +150,10 @@ impl From<Vec2<f32>> for [f32; 2] {
     }
 }
 
-impl<T> Half for Vec2<T> where T: Half {
+impl<T> Half for Vec2<T>
+where
+    T: Half,
+{
     fn half(&self) -> Self {
         Self {
             x: self.x.half(),
@@ -135,13 +162,19 @@ impl<T> Half for Vec2<T> where T: Half {
     }
 }
 
-impl<T> IsZero for Vec2<T> where T: IsZero {
+impl<T> IsZero for Vec2<T>
+where
+    T: IsZero,
+{
     fn is_zero(&self) -> bool {
         self.x.is_zero() && self.y.is_zero()
     }
 }
 
-impl<T> Zero for Vec2<T> where T: Zero {
+impl<T> Zero for Vec2<T>
+where
+    T: Zero,
+{
     fn zero() -> Self {
         Self {
             x: T::zero(),
@@ -150,7 +183,10 @@ impl<T> Zero for Vec2<T> where T: Zero {
     }
 }
 
-impl<T> One for Vec2<T> where T: One {
+impl<T> One for Vec2<T>
+where
+    T: One,
+{
     fn one() -> Self {
         Self {
             x: T::one(),
@@ -231,7 +267,10 @@ impl<T> Vec2<T> {
     }
 }
 
-impl<T> Vec2<T> where T: Clone {
+impl<T> Vec2<T>
+where
+    T: Clone,
+{
     pub fn map_cloned<U>(&self, f: impl Fn(T) -> U) -> Vec2<U> {
         Vec2 {
             x: f(self.x.clone()),
@@ -241,7 +280,10 @@ impl<T> Vec2<T> where T: Clone {
 }
 
 // Vector
-impl<T> Add for Vec2<T> where T: Add<T, Output = T> {
+impl<T> Add for Vec2<T>
+where
+    T: Add<T, Output = T>,
+{
     type Output = Vec2<T>;
 
     fn add(self, rhs: Vec2<T>) -> Self::Output {
@@ -253,7 +295,10 @@ impl<T> Add for Vec2<T> where T: Add<T, Output = T> {
 }
 
 // Scalar
-impl<T> Add<T> for Vec2<T> where T: Clone + Add<T, Output = T> {
+impl<T> Add<T> for Vec2<T>
+where
+    T: Clone + Add<T, Output = T>,
+{
     type Output = Vec2<T>;
 
     fn add(self, scalar: T) -> Self::Output {
@@ -265,25 +310,37 @@ impl<T> Add<T> for Vec2<T> where T: Clone + Add<T, Output = T> {
 }
 
 // Begin Vector assign
-impl<T> ops::AddAssign for Vec2<T> where T: Add<T, Output = T> + Clone {
+impl<T> ops::AddAssign for Vec2<T>
+where
+    T: Add<T, Output = T> + Clone,
+{
     fn add_assign(&mut self, rhs: Self) {
         *self = self.clone() + rhs;
     }
 }
 
-impl<T> ops::SubAssign for Vec2<T> where T: Sub<T, Output = T> + Clone {
+impl<T> ops::SubAssign for Vec2<T>
+where
+    T: Sub<T, Output = T> + Clone,
+{
     fn sub_assign(&mut self, rhs: Self) {
         *self = self.clone() - rhs;
     }
 }
 
-impl<T> ops::MulAssign for Vec2<T> where T: Mul<T, Output = T> + Clone {
+impl<T> ops::MulAssign for Vec2<T>
+where
+    T: Mul<T, Output = T> + Clone,
+{
     fn mul_assign(&mut self, rhs: Self) {
         *self = self.clone() * rhs;
     }
 }
 
-impl<T> ops::DivAssign for Vec2<T> where T: ops::Div<T, Output = T> + Clone {
+impl<T> ops::DivAssign for Vec2<T>
+where
+    T: ops::Div<T, Output = T> + Clone,
+{
     fn div_assign(&mut self, rhs: Self) {
         *self = self.clone() / rhs;
     }
@@ -291,7 +348,10 @@ impl<T> ops::DivAssign for Vec2<T> where T: ops::Div<T, Output = T> + Clone {
 // END Vector assign
 
 // Scalar
-impl<T> Sub<T> for Vec2<T> where T: Clone + Sub<T, Output = T> {
+impl<T> Sub<T> for Vec2<T>
+where
+    T: Clone + Sub<T, Output = T>,
+{
     type Output = Vec2<T>;
 
     fn sub(self, scalar: T) -> Self::Output {
@@ -303,7 +363,10 @@ impl<T> Sub<T> for Vec2<T> where T: Clone + Sub<T, Output = T> {
 }
 
 // Vector
-impl<T> Sub for Vec2<T> where T: Sub<T, Output = T> {
+impl<T> Sub for Vec2<T>
+where
+    T: Sub<T, Output = T>,
+{
     type Output = Vec2<T>;
 
     fn sub(self, rhs: Vec2<T>) -> Self::Output {
@@ -315,7 +378,10 @@ impl<T> Sub for Vec2<T> where T: Sub<T, Output = T> {
 }
 
 // Vector
-impl<T> Mul for Vec2<T> where T: Mul<T, Output = T> {
+impl<T> Mul for Vec2<T>
+where
+    T: Mul<T, Output = T>,
+{
     type Output = Vec2<T>;
 
     fn mul(self, rhs: Vec2<T>) -> Self::Output {
@@ -327,7 +393,10 @@ impl<T> Mul for Vec2<T> where T: Mul<T, Output = T> {
 }
 
 // Scalar
-impl<T> Mul<T> for Vec2<T> where T: Clone + Mul<T, Output = T> {
+impl<T> Mul<T> for Vec2<T>
+where
+    T: Clone + Mul<T, Output = T>,
+{
     type Output = Vec2<T>;
 
     fn mul(self, scalar: T) -> Self::Output {
@@ -339,7 +408,10 @@ impl<T> Mul<T> for Vec2<T> where T: Clone + Mul<T, Output = T> {
 }
 
 // Vector
-impl<T> ops::Div for Vec2<T> where T: ops::Div<T, Output = T> {
+impl<T> ops::Div for Vec2<T>
+where
+    T: ops::Div<T, Output = T>,
+{
     type Output = Vec2<T>;
 
     fn div(self, rhs: Vec2<T>) -> Self::Output {
@@ -351,7 +423,10 @@ impl<T> ops::Div for Vec2<T> where T: ops::Div<T, Output = T> {
 }
 
 // Scalar
-impl<T> ops::Div<T> for Vec2<T> where T: Clone + ops::Div<T, Output = T> {
+impl<T> ops::Div<T> for Vec2<T>
+where
+    T: Clone + ops::Div<T, Output = T>,
+{
     type Output = Vec2<T>;
 
     fn div(self, scalar: T) -> Self::Output {

@@ -23,10 +23,7 @@ impl RenderList {
     }
 
     pub fn stage_changes(&mut self, state: CanvasState) {
-        let start = self.stage
-            .last()
-            .map(|ins| ins.range.end)
-            .unwrap_or(0);
+        let start = self.stage.last().map(|ins| ins.range.end).unwrap_or(0);
         let end = self.instructions.len();
 
         if start < end {
@@ -110,7 +107,7 @@ mod tests {
 
     use ara_math::Mat3;
 
-    use crate::{ quad, Brush };
+    use crate::{quad, Brush};
 
     use super::*;
 
@@ -162,12 +159,10 @@ mod tests {
 
         assert_eq!(
             &list.stage,
-            &[
-                StageItem {
-                    range: 0..3,
-                    state: CanvasState::default(),
-                },
-            ]
+            &[StageItem {
+                range: 0..3,
+                state: CanvasState::default(),
+            },]
         )
     }
 
@@ -219,12 +214,10 @@ mod tests {
 
         assert_eq!(
             &list.stage,
-            &[
-                StageItem {
-                    range: 0..3,
-                    state: CanvasState::default(),
-                },
-            ]
+            &[StageItem {
+                range: 0..3,
+                state: CanvasState::default(),
+            },]
         )
     }
 
@@ -251,12 +244,10 @@ mod tests {
 
         assert_eq!(
             &list.stage,
-            &[
-                StageItem {
-                    range: 0..8,
-                    state: CanvasState::default(),
-                },
-            ]
+            &[StageItem {
+                range: 0..8,
+                state: CanvasState::default(),
+            },]
         )
     }
 

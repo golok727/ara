@@ -1,13 +1,16 @@
 // Adapted from
 // https://github.com/CrushedPixel/Polyline2D
 // https://artgrammer.blogspot.com/2011/07/drawing-polylines-by-tessellation.html?m=1
-use std::{ f32, ops::{ Deref, DerefMut } };
+use std::{
+    f32,
+    ops::{Deref, DerefMut},
+};
 
 const MITER_MIN_ANGLE: f32 = 0.349066; // ~20 degrees
 
-use crate::{ LineJoin, Vec2 };
+use crate::{LineJoin, Vec2};
 
-use super::{ LineCap, Mesh, StrokeStyle, WHITE_UV };
+use super::{LineCap, Mesh, StrokeStyle, WHITE_UV};
 
 /*
 TODO
@@ -87,7 +90,7 @@ impl<'a> StrokeTessellator<'a> {
                 &mut path_end_1,
                 &mut path_end_2,
                 &mut path_start_1,
-                &mut path_start_2
+                &mut path_start_2,
             );
         } else {
             match stroke_style.line_cap {
@@ -102,7 +105,7 @@ impl<'a> StrokeTessellator<'a> {
                         first_segment.center.a,
                         path_start_1,
                         path_start_2,
-                        false
+                        false,
                     );
 
                     self.mesh.add_triangle_fan(
@@ -111,7 +114,7 @@ impl<'a> StrokeTessellator<'a> {
                         last_segment.center.b,
                         path_end_1,
                         path_end_2,
-                        true
+                        true,
                     );
                 }
                 LineCap::Square => {
@@ -151,7 +154,7 @@ impl<'a> StrokeTessellator<'a> {
                     &mut end_1,
                     &mut end_2,
                     &mut next_start_1,
-                    &mut next_start_2
+                    &mut next_start_2,
                 );
             }
 
@@ -163,9 +166,11 @@ impl<'a> StrokeTessellator<'a> {
             self.mesh.add_vertex(end_1, stroke_style.color, WHITE_UV);
             self.mesh.add_vertex(end_2, stroke_style.color, WHITE_UV);
 
-            self.mesh.add_triangle(cur_vertex_idx, cur_vertex_idx + 1, cur_vertex_idx + 2);
+            self.mesh
+                .add_triangle(cur_vertex_idx, cur_vertex_idx + 1, cur_vertex_idx + 2);
 
-            self.mesh.add_triangle(cur_vertex_idx + 2, cur_vertex_idx + 1, cur_vertex_idx + 3);
+            self.mesh
+                .add_triangle(cur_vertex_idx + 2, cur_vertex_idx + 1, cur_vertex_idx + 3);
 
             start_1 = next_start_1;
             start_2 = next_start_2;
@@ -184,7 +189,7 @@ impl<'a> StrokeTessellator<'a> {
         end2: &mut Vec2<f32>,
 
         next_start1: &mut Vec2<f32>,
-        next_start2: &mut Vec2<f32>
+        next_start2: &mut Vec2<f32>,
     ) {
         let dir1 = segment1.center.direction();
         let dir2 = segment2.center.direction();
@@ -274,9 +279,9 @@ impl<'a> StrokeTessellator<'a> {
                 self.mesh.add_vertex(inner_sec, style.color, WHITE_UV);
 
                 self.mesh.add_triangle(
-                    cur_vertex_idx, //
+                    cur_vertex_idx,     //
                     cur_vertex_idx + 1, //
-                    cur_vertex_idx + 2 //
+                    cur_vertex_idx + 2, //
                 );
             } else if joint_style == LineJoin::Round {
                 self.mesh.add_triangle_fan(
@@ -285,7 +290,7 @@ impl<'a> StrokeTessellator<'a> {
                     segment1.center.b,
                     outer1.b,
                     outer2.a,
-                    clockwise
+                    clockwise,
                 );
             }
         }
@@ -298,7 +303,7 @@ enum StrokeTessellatorMesh<'a> {
     Owned(Mesh),
 }
 
-impl<'a> Deref for StrokeTessellatorMesh<'a> {
+impl Deref for StrokeTessellatorMesh<'_> {
     type Target = Mesh;
 
     fn deref(&self) -> &Self::Target {
@@ -309,7 +314,7 @@ impl<'a> Deref for StrokeTessellatorMesh<'a> {
     }
 }
 
-impl<'a> DerefMut for StrokeTessellatorMesh<'a> {
+impl DerefMut for StrokeTessellatorMesh<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             StrokeTessellatorMesh::Borrowed(mesh) => mesh,
@@ -396,7 +401,7 @@ impl LineSegment {
     pub fn intersection(
         &self,
         other: &LineSegment,
-        allow_infinite_lines: bool
+        allow_infinite_lines: bool,
     ) -> Option<Vec2<f32>> {
         const EPSILON: f32 = 0.0001;
 

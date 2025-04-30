@@ -1,6 +1,6 @@
-use ara_math::{ vec2, Corners, Rect };
+use ara_math::{vec2, Corners, Rect};
 
-use super::{ Path, PathEventsIter, PathVerb, Point, Polygon };
+use super::{Path, PathEventsIter, PathVerb, Point, Polygon};
 
 #[derive(Debug, Clone, Copy, Default, Hash, PartialEq, PartialOrd, Eq)]
 pub struct Contour(pub(crate) usize);
@@ -57,7 +57,11 @@ impl PathBuilder {
             self.points.push(self.first);
         }
 
-        self.verbs.push(if close { PathVerb::Close } else { PathVerb::End });
+        self.verbs.push(if close {
+            PathVerb::Close
+        } else {
+            PathVerb::End
+        });
 
         Contour(self.points.len())
     }
@@ -135,7 +139,12 @@ impl PathBuilder {
 
     pub fn rect(&mut self, rect: &Rect<f32>) -> Contour {
         self.polygon(Polygon {
-            points: &[rect.top_left(), rect.top_right(), rect.bottom_right(), rect.bottom_left()],
+            points: &[
+                rect.top_left(),
+                rect.top_right(),
+                rect.bottom_right(),
+                rect.bottom_left(),
+            ],
             closed: true,
         })
     }
@@ -208,7 +217,7 @@ fn add_circle(builder: &mut PathBuilder, center: Point, radius: f32) -> Contour 
 fn add_rounded_rectangle(
     builder: &mut PathBuilder,
     rect: &Rect<f32>,
-    corners: &Corners<f32>
+    corners: &Corners<f32>,
 ) -> Contour {
     let w = rect.size.width;
     let h = rect.size.height;
@@ -263,10 +272,10 @@ fn add_rounded_rectangle(
     let bl_corner = vec2(x_min, y_max);
 
     let points = [
-        vec2(x_min, y_min + tl), // begin
+        vec2(x_min, y_min + tl),          // begin
         tl_corner + vec2(0.0, tl - tl_d), // control
         tl_corner + vec2(tl - tl_d, 0.0), // control
-        tl_corner + vec2(tl, 0.0), // end
+        tl_corner + vec2(tl, 0.0),        // end
         vec2(x_max - tr, y_min),
         tr_corner + vec2(-tr + tr_d, 0.0),
         tr_corner + vec2(0.0, tr - tr_d),
@@ -357,7 +366,7 @@ impl DebugPathValidator {
 
 #[cfg(test)]
 mod tests {
-    use ara_math::{ vec2, Corners, Rect };
+    use ara_math::{vec2, Corners, Rect};
 
     use super::super::*;
     #[test]
@@ -373,7 +382,13 @@ mod tests {
 
             assert_eq!(
                 &path.points,
-                &[vec2(0.0, 0.0), vec2(5.0, 5.0), vec2(10.0, 10.0), vec2(2.0, 10.0), vec2(0.0, 0.0)]
+                &[
+                    vec2(0.0, 0.0),
+                    vec2(5.0, 5.0),
+                    vec2(10.0, 10.0),
+                    vec2(2.0, 10.0),
+                    vec2(0.0, 0.0)
+                ]
             );
 
             assert_eq!(
@@ -399,7 +414,12 @@ mod tests {
 
             assert_eq!(
                 &path.points,
-                &[vec2(0.0, 0.0), vec2(5.0, 5.0), vec2(10.0, 10.0), vec2(2.0, 10.0)]
+                &[
+                    vec2(0.0, 0.0),
+                    vec2(5.0, 5.0),
+                    vec2(10.0, 10.0),
+                    vec2(2.0, 10.0)
+                ]
             );
 
             assert_eq!(
@@ -421,10 +441,16 @@ mod tests {
 
         path.begin(vec2(0.0, 0.0));
         path.quadratic_to(vec2(5.0, 5.0), vec2(10.0, 0.0));
-        assert_eq!(&path.points, &[vec2(0.0, 0.0), vec2(5.0, 5.0), vec2(10.0, 0.0)]);
+        assert_eq!(
+            &path.points,
+            &[vec2(0.0, 0.0), vec2(5.0, 5.0), vec2(10.0, 0.0)]
+        );
         path.end(false);
 
-        assert_eq!(&path.verbs, &[PathVerb::Begin, PathVerb::QuadraticTo, PathVerb::End]);
+        assert_eq!(
+            &path.verbs,
+            &[PathVerb::Begin, PathVerb::QuadraticTo, PathVerb::End]
+        );
     }
 
     #[test]
@@ -435,11 +461,19 @@ mod tests {
         path.cubic_to(vec2(0.0, 5.0), vec2(10.0, 5.0), vec2(10.0, 0.0));
         assert_eq!(
             &path.points,
-            &[vec2(0.0, 0.0), vec2(0.0, 5.0), vec2(10.0, 5.0), vec2(10.0, 0.0)]
+            &[
+                vec2(0.0, 0.0),
+                vec2(0.0, 5.0),
+                vec2(10.0, 5.0),
+                vec2(10.0, 0.0)
+            ]
         );
         path.end(false);
 
-        assert_eq!(&path.verbs, &[PathVerb::Begin, PathVerb::CubicTo, PathVerb::End]);
+        assert_eq!(
+            &path.verbs,
+            &[PathVerb::Begin, PathVerb::CubicTo, PathVerb::End]
+        );
     }
 
     #[test]
@@ -620,7 +654,12 @@ mod tests {
             });
             assert_eq!(
                 &path.points,
-                &[vec2(0.0, 0.0), vec2(10.0, 100.0), vec2(200.0, 300.0), vec2(500.0, 600.0)]
+                &[
+                    vec2(0.0, 0.0),
+                    vec2(10.0, 100.0),
+                    vec2(200.0, 300.0),
+                    vec2(500.0, 600.0)
+                ]
             );
             assert_eq!(
                 &path.verbs,

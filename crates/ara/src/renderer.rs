@@ -1,21 +1,8 @@
-use std::{ borrow::Cow, cell::Cell, num::NonZeroU64, ops::Range };
+use std::{borrow::Cow, cell::Cell, num::NonZeroU64, ops::Range};
 
 use crate::{
-    gpu::CommandEncoder,
-    paint::Vertex,
-    AtlasKey,
-    AtlasKeySource,
-    GpuContext,
-    GpuTextureView,
-    Mat3,
-    Mesh,
-    Rect,
-    Size,
-    AraAtlas,
-    TextureAtlas,
-    TextureId,
-    TextureKind,
-    TextureOptions,
+    gpu::CommandEncoder, paint::Vertex, AraAtlas, AtlasKey, AtlasKeySource, Context,
+    GpuTextureView, Mat3, Mesh, Rect, Size, TextureAtlas, TextureId, TextureKind, TextureOptions,
 };
 
 use wgpu::util::DeviceExt;
@@ -45,46 +32,42 @@ pub struct GlobalUniformsBuffer {
 }
 
 impl GlobalUniformsBuffer {
-    pub fn new(gpu: &GpuContext, data: GlobalUniformData) -> Self {
+    pub fn new(gpu: &Context, data: GlobalUniformData) -> Self {
         let gpu_buffer = gpu.device.create_buffer_init(
             &(wgpu::util::BufferInitDescriptor {
                 label: Some("Global uniform buffer"),
                 contents: bytemuck::cast_slice(&[data]),
-                usage: wgpu::BufferUsages::UNIFORM |
-                wgpu::BufferUsages::COPY_SRC |
-                wgpu::BufferUsages::COPY_DST,
-            })
+                usage: wgpu::BufferUsages::UNIFORM
+                    | wgpu::BufferUsages::COPY_SRC
+                    | wgpu::BufferUsages::COPY_DST,
+            }),
         );
 
         let layout = gpu.device.create_bind_group_layout(
             &(wgpu::BindGroupLayoutDescriptor {
                 label: Some("Global uniform bind group layout"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
-                ],
-            })
+                    count: None,
+                }],
+            }),
         );
 
         let bind_group = gpu.device.create_bind_group(
             &(wgpu::BindGroupDescriptor {
                 label: Some("Global uniform bind group"),
                 layout: &layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: gpu_buffer.as_entire_binding(),
-                    },
-                ],
-            })
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: gpu_buffer.as_entire_binding(),
+                }],
+            }),
         );
 
         Self {
@@ -106,14 +89,15 @@ impl GlobalUniformsBuffer {
         self.dirty.set(true);
     }
 
-    pub fn sync(&self, gpu: &GpuContext) {
+    pub fn sync(&self, gpu: &Context) {
         if !self.dirty.get() {
             return;
         }
 
         log::trace!("Global uniform buffer sync");
 
-        gpu.queue.write_buffer(&self.gpu_buffer, 0, bytemuck::cast_slice(&[self.data]));
+        gpu.queue
+            .write_buffer(&self.gpu_buffer, 0, bytemuck::cast_slice(&[self.data]));
 
         self.dirty.set(false);
     }
@@ -134,7 +118,7 @@ pub struct Renderer2DSpecs {
 
 #[derive(Debug)]
 pub struct Renderer2D {
-    gpu: GpuContext,
+    gpu: Context,
 
     size: Size<u32>,
 
@@ -158,12 +142,11 @@ fn get_proj_matrix(width: u32, height: u32) -> Mat3 {
 }
 
 impl Renderer2D {
-    pub fn new(gpu: GpuContext, specs: &Renderer2DSpecs) -> Self {
+    pub fn new(gpu: Context, specs: &Renderer2DSpecs) -> Self {
         let proj = get_proj_matrix(specs.width, specs.height);
 
-        let global_uniforms = GlobalUniformsBuffer::new(&gpu, GlobalUniformData {
-            proj: proj.into(),
-        });
+        let global_uniforms =
+            GlobalUniformsBuffer::new(&gpu, GlobalUniformData { proj: proj.into() });
 
         let texture_bindgroup_layout = gpu.device.create_bind_group_layout(
             &(wgpu::BindGroupLayoutDescriptor {
@@ -186,13 +169,16 @@ impl Renderer2D {
                         count: None,
                     },
                 ],
-            })
+            }),
         );
 
         let scene_pipe = GeometryPipes::new(
             &gpu,
             specs.msaa_sample_count,
-            &[&global_uniforms.bing_group_layout, &texture_bindgroup_layout]
+            &[
+                &global_uniforms.bing_group_layout,
+                &texture_bindgroup_layout,
+            ],
         );
 
         let vertex_buffer = BatchBuffer {
@@ -226,7 +212,7 @@ impl Renderer2D {
         self.size
     }
 
-    pub fn gpu(&self) -> &GpuContext {
+    pub fn gpu(&self) -> &Context {
         &self.gpu
     }
 
@@ -242,10 +228,10 @@ impl Renderer2D {
     }
 
     fn create_texture_bind_group(
-        gpu: &GpuContext,
+        gpu: &Context,
         layout: &wgpu::BindGroupLayout,
         view: &GpuTextureView,
-        options: &TextureOptions
+        options: &TextureOptions,
     ) -> wgpu::BindGroup {
         let sampler = gpu.device.create_sampler(
             &(wgpu::SamplerDescriptor {
@@ -261,7 +247,7 @@ impl Renderer2D {
                 compare: None,
                 anisotropy_clamp: 1,
                 border_color: None,
-            })
+            }),
         );
 
         let bindgroup = gpu.device.create_bind_group(
@@ -278,7 +264,7 @@ impl Renderer2D {
                         resource: wgpu::BindingResource::Sampler(&sampler),
                     },
                 ],
-            })
+            }),
         );
 
         bindgroup
@@ -288,58 +274,67 @@ impl Renderer2D {
         &mut self,
         texture_id: &TextureId,
         view: &GpuTextureView,
-        options: &TextureOptions
+        options: &TextureOptions,
     ) {
         let bindgroup = Self::create_texture_bind_group(
             &self.gpu,
             &self.texture_bindgroup_layout,
             view,
-            options
+            options,
         );
-        self.textures.insert(texture_id.clone(), RendererTexture {
-            bindgroup,
-            kind: options.kind,
-        });
+        self.textures.insert(
+            texture_id.clone(),
+            RendererTexture {
+                bindgroup,
+                kind: options.kind,
+            },
+        );
     }
 
     pub fn set_texture_from_atlas<Key>(
         &mut self,
         atlas: &TextureAtlas<Key>,
         texture_id: &Key,
-        options: &TextureOptions
-    )
-        where Key: AtlasKeySource
+        options: &TextureOptions,
+    ) where
+        Key: AtlasKeySource,
     {
-        let texture_in_atlas = atlas.get_texture_for_key::<
-            Option<(TextureId, TextureKind, wgpu::BindGroup)>
-        >(texture_id, |texture| {
-            let atlas_tex_id = TextureId::Atlas(texture.id());
-            let kind = texture.kind();
-            if self.textures.contains_key(&atlas_tex_id) {
-                None
-            } else {
-                Some((
-                    atlas_tex_id,
-                    kind,
-                    Self::create_texture_bind_group(
-                        &self.gpu,
-                        &self.texture_bindgroup_layout,
-                        texture.view(),
-                        options
-                    ),
-                ))
-            }
-        });
+        let texture_in_atlas = atlas
+            .get_texture_for_key::<Option<(TextureId, TextureKind, wgpu::BindGroup)>>(
+                texture_id,
+                |texture| {
+                    let atlas_tex_id = TextureId::Atlas(texture.id());
+                    let kind = texture.kind();
+                    if self.textures.contains_key(&atlas_tex_id) {
+                        None
+                    } else {
+                        Some((
+                            atlas_tex_id,
+                            kind,
+                            Self::create_texture_bind_group(
+                                &self.gpu,
+                                &self.texture_bindgroup_layout,
+                                texture.view(),
+                                options,
+                            ),
+                        ))
+                    }
+                },
+            );
 
         if texture_in_atlas.is_none() {
-            log::error!("ATLAS_TEXTURE_NOT_FOUND: (set_atlas_texture) {:#?}", texture_id);
+            log::error!(
+                "ATLAS_TEXTURE_NOT_FOUND: (set_atlas_texture) {:#?}",
+                texture_id
+            );
             return;
         }
 
         let need_to_add = texture_in_atlas.unwrap();
 
         if let Some((atlas_tex_id, kind, bindgroup)) = need_to_add {
-            self.textures.insert(atlas_tex_id, RendererTexture { bindgroup, kind });
+            self.textures
+                .insert(atlas_tex_id, RendererTexture { bindgroup, kind });
         }
     }
 
@@ -348,29 +343,33 @@ impl Renderer2D {
             return;
         }
 
-        let (vertex_count, index_count): (usize, usize) = renderables
-            .iter()
-            .fold((0, 0), |res, renderable| {
-                (res.0 + renderable.mesh.vertices.len(), res.1 + renderable.mesh.indices.len())
+        let (vertex_count, index_count): (usize, usize) =
+            renderables.iter().fold((0, 0), |res, renderable| {
+                (
+                    res.0 + renderable.mesh.vertices.len(),
+                    res.1 + renderable.mesh.indices.len(),
+                )
             });
 
         if vertex_count > 0 {
             let vb = &mut self.vertex_buffer;
             vb.slices.clear();
 
-            let required_vertex_buffer_size = (std::mem::size_of::<Vertex>() *
-                vertex_count) as wgpu::BufferAddress;
+            let required_vertex_buffer_size =
+                (std::mem::size_of::<Vertex>() * vertex_count) as wgpu::BufferAddress;
 
             if vb.capacity < required_vertex_buffer_size {
                 vb.capacity = (vb.capacity * 2).max(required_vertex_buffer_size);
                 vb.buffer = self.gpu.create_vertex_buffer(vb.capacity);
             }
 
-            let mut staging_vertex = self.gpu.queue
+            let mut staging_vertex = self
+                .gpu
+                .queue
                 .write_buffer_with(
                     &vb.buffer,
                     0,
-                    NonZeroU64::new(required_vertex_buffer_size).unwrap()
+                    NonZeroU64::new(required_vertex_buffer_size).unwrap(),
                 )
                 .expect("Failed to create stating buffer for vertex");
 
@@ -379,9 +378,8 @@ impl Renderer2D {
             for renderable in renderables {
                 let size = renderable.mesh.vertices.len() * std::mem::size_of::<Vertex>();
                 let slice = vertex_offset..size + vertex_offset;
-                staging_vertex[slice.clone()].copy_from_slice(
-                    bytemuck::cast_slice(&renderable.mesh.vertices)
-                );
+                staging_vertex[slice.clone()]
+                    .copy_from_slice(bytemuck::cast_slice(&renderable.mesh.vertices));
                 vb.slices.push(slice);
                 vertex_offset += size;
             }
@@ -391,19 +389,21 @@ impl Renderer2D {
             let ib = &mut self.index_buffer;
             ib.slices.clear();
 
-            let required_index_buffer_size = (std::mem::size_of::<u32>() *
-                index_count) as wgpu::BufferAddress;
+            let required_index_buffer_size =
+                (std::mem::size_of::<u32>() * index_count) as wgpu::BufferAddress;
 
             if ib.capacity < required_index_buffer_size {
                 ib.capacity = (ib.capacity * 2).max(required_index_buffer_size);
                 ib.buffer = self.gpu.create_index_buffer(ib.capacity);
             }
 
-            let mut staging_index = self.gpu.queue
+            let mut staging_index = self
+                .gpu
+                .queue
                 .write_buffer_with(
                     &ib.buffer,
                     0,
-                    NonZeroU64::new(required_index_buffer_size).unwrap()
+                    NonZeroU64::new(required_index_buffer_size).unwrap(),
                 )
                 .expect("Failed to create staging buffer for");
 
@@ -411,9 +411,8 @@ impl Renderer2D {
             for renderable in renderables {
                 let size = renderable.mesh.indices.len() * std::mem::size_of::<u32>();
                 let slice = index_offset..size + index_offset;
-                staging_index[slice.clone()].copy_from_slice(
-                    bytemuck::cast_slice(&renderable.mesh.indices)
-                );
+                staging_index[slice.clone()]
+                    .copy_from_slice(bytemuck::cast_slice(&renderable.mesh.indices));
                 ib.slices.push(slice);
                 index_offset += size;
             }
@@ -456,11 +455,15 @@ impl Renderer2D {
                 render_pass.set_bind_group(1, bindgroup, &[]);
                 render_pass.set_vertex_buffer(
                     0,
-                    self.vertex_buffer.buffer.slice(vb_slice.start as u64..vb_slice.end as u64)
+                    self.vertex_buffer
+                        .buffer
+                        .slice(vb_slice.start as u64..vb_slice.end as u64),
                 );
                 render_pass.set_index_buffer(
-                    self.index_buffer.buffer.slice(ib_slice.start as u64..ib_slice.end as u64),
-                    wgpu::IndexFormat::Uint32
+                    self.index_buffer
+                        .buffer
+                        .slice(ib_slice.start as u64..ib_slice.end as u64),
+                    wgpu::IndexFormat::Uint32,
                 );
                 render_pass.draw_indexed(0..renderable.mesh.indices.len() as u32, 0, 0..1);
             } else {
@@ -480,9 +483,9 @@ impl Renderer2D {
 }
 
 pub(crate) fn create_ara_renderer(
-    gpu: GpuContext,
+    gpu: Context,
     atlas: &AraAtlas,
-    specs: &Renderer2DSpecs
+    specs: &Renderer2DSpecs,
 ) -> Renderer2D {
     let mut renderer = Renderer2D::new(gpu, specs);
     // add white texture to the atlas
@@ -515,21 +518,19 @@ struct GeometryPipes {
 
 impl GeometryPipes {
     pub fn new(
-        gpu: &GpuContext,
+        gpu: &Context,
         msaa_sample_count: u32,
-        bind_group_layouts: &[&wgpu::BindGroupLayout]
+        bind_group_layouts: &[&wgpu::BindGroupLayout],
     ) -> Self {
-        let shader = gpu.create_shader_labeled(
-            include_str!("./resources/shader.wgsl"),
-            "Scene Shader"
-        );
+        let shader =
+            gpu.create_shader_labeled(include_str!("./resources/shader.wgsl"), "Scene Shader");
 
         let layout = gpu.device.create_pipeline_layout(
             &(wgpu::PipelineLayoutDescriptor {
                 label: Some("Scenepipe layout"),
                 bind_group_layouts,
                 push_constant_ranges: &[],
-            })
+            }),
         );
 
         let vbo_layout = wgpu::VertexBufferLayout {
@@ -561,13 +562,11 @@ impl GeometryPipes {
                     module: &shader,
                     entry_point: Some("fs_poly"),
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    targets: &[
-                        Some(wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8Unorm,
-                            blend,
-                            write_mask: wgpu::ColorWrites::ALL,
-                        }),
-                    ],
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: wgpu::TextureFormat::Rgba8Unorm,
+                        blend,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -586,7 +585,7 @@ impl GeometryPipes {
                 },
                 multiview: None,
                 cache: None,
-            })
+            }),
         );
 
         let monochrome = gpu.device.create_render_pipeline(
@@ -603,13 +602,11 @@ impl GeometryPipes {
                     module: &shader,
                     entry_point: Some("fs_mono"),
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    targets: &[
-                        Some(wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8Unorm,
-                            blend,
-                            write_mask: wgpu::ColorWrites::ALL,
-                        }),
-                    ],
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: wgpu::TextureFormat::Rgba8Unorm,
+                        blend,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -628,7 +625,7 @@ impl GeometryPipes {
                 },
                 multiview: None,
                 cache: None,
-            })
+            }),
         );
 
         Self {
@@ -647,14 +644,8 @@ struct ScissorRect {
 
 impl ScissorRect {
     fn new(clip_rect: &Rect<f32>, screen_size: &Size<u32>) -> Self {
-        let clip_min = clip_rect
-            .min()
-            .round()
-            .map_cloned(|v| v as u32);
-        let clip_max = clip_rect
-            .max()
-            .round()
-            .map_cloned(|v| v as u32);
+        let clip_min = clip_rect.min().round().map_cloned(|v| v as u32);
+        let clip_max = clip_rect.max().round().map_cloned(|v| v as u32);
 
         let clip_min_x = clip_min.x.clamp(0, screen_size.width);
         let clip_min_y = clip_min.y.clamp(0, screen_size.height);

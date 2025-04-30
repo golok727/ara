@@ -1,8 +1,11 @@
-use std::ops::{ Deref, DerefMut };
+use std::ops::{Deref, DerefMut};
 
-use ara_math::{ Corners, Rect };
+use ara_math::{Corners, Rect};
 
-use crate::{ path::{ Contour, Point }, Canvas, PathBuilder, Polygon };
+use crate::{
+    path::{Contour, Point},
+    Canvas, PathBuilder, Polygon,
+};
 
 use super::Color;
 
@@ -163,17 +166,34 @@ impl Brush {
     }
 
     pub fn some<T>(self, opt: Option<T>, consequent: impl FnOnce(Self, T) -> Self) -> Self {
-        if let Some(v) = opt { consequent(self, v) } else { self }
+        if let Some(v) = opt {
+            consequent(self, v)
+        } else {
+            self
+        }
     }
 
-    pub fn when<F>(self, cond: bool, consequent: F) -> Self where F: FnOnce(Self) -> Self {
-        if cond { consequent(self) } else { self }
+    pub fn when<F>(self, cond: bool, consequent: F) -> Self
+    where
+        F: FnOnce(Self) -> Self,
+    {
+        if cond {
+            consequent(self)
+        } else {
+            self
+        }
     }
 
     pub fn when_or<C, A>(self, cond: bool, consequent: C, alternate: A) -> Self
-        where C: FnOnce(Self) -> Self, A: FnOnce(Self) -> Self
+    where
+        C: FnOnce(Self) -> Self,
+        A: FnOnce(Self) -> Self,
     {
-        if cond { consequent(self) } else { alternate(self) }
+        if cond {
+            consequent(self)
+        } else {
+            alternate(self)
+        }
     }
 }
 
@@ -321,7 +341,10 @@ impl PathBrush {
 
     #[inline]
     pub fn get_or_default(&self, contour: &Contour) -> Brush {
-        self.overrides.get(contour).cloned().unwrap_or(self.default.clone())
+        self.overrides
+            .get(contour)
+            .cloned()
+            .unwrap_or(self.default.clone())
     }
 }
 
@@ -352,7 +375,10 @@ impl From<&Brush> for PathBrush {
     }
 }
 
-impl<T> From<T> for PathBrush where T: IntoIterator<Item = (Contour, Brush)> {
+impl<T> From<T> for PathBrush
+where
+    T: IntoIterator<Item = (Contour, Brush)>,
+{
     fn from(value: T) -> Self {
         Self {
             default: Default::default(),
@@ -448,9 +474,12 @@ impl PathBuilderBrushExt for PathBuilder {
 mod tests {
     use ara_math::vec2;
 
-    use crate::{ path::{ PathBuilder, PathEventsIter, PathGeometryBuilder, Point }, Color };
+    use crate::{
+        path::{PathBuilder, PathEventsIter, PathGeometryBuilder, Point},
+        Color,
+    };
 
-    use super::{ Brush, PathBrush };
+    use super::{Brush, PathBrush};
 
     #[test]
     fn paint_brush_with_path() {
@@ -476,9 +505,9 @@ mod tests {
 
         let mut output = <Vec<Point>>::new();
 
-        let mut builder = <PathGeometryBuilder<PathEventsIter>>
-            ::new(path.path_events(), &mut output)
-            .map(|v| v.0);
+        let mut builder =
+            <PathGeometryBuilder<PathEventsIter>>::new(path.path_events(), &mut output)
+                .map(|v| v.0);
 
         let leg_l_build = builder.next().expect("no contour");
         assert_eq!(leg_l, leg_l_build);

@@ -1,5 +1,5 @@
-use crate::{ paint::Primitive, Brush, TextureId };
-use std::{ iter::Peekable, slice };
+use crate::{paint::Primitive, Brush, TextureId};
+use std::{iter::Peekable, slice};
 
 use super::Color;
 
@@ -35,7 +35,7 @@ impl GraphicsInstruction {
     pub fn textured_brush(
         primitive: impl Into<Primitive>,
         texture_id: TextureId,
-        brush: Brush
+        brush: Brush,
     ) -> Self {
         Self {
             primitive: primitive.into(),
@@ -47,7 +47,9 @@ impl GraphicsInstruction {
 
 // batches instructions with the same texture
 pub(crate) struct GraphicsInstructionBatcher<'a, TexMap>
-    where TexMap: Fn(&'a TextureId) -> Option<TextureId> + 'a {
+where
+    TexMap: Fn(&'a TextureId) -> Option<TextureId> + 'a,
+{
     instruction_start: usize,
     instructions: &'a [GraphicsInstruction],
     instructions_iter: Peekable<slice::Iter<'a, GraphicsInstruction>>,
@@ -55,7 +57,8 @@ pub(crate) struct GraphicsInstructionBatcher<'a, TexMap>
 }
 
 impl<'a, TexMap> GraphicsInstructionBatcher<'a, TexMap>
-    where TexMap: Fn(&'a TextureId) -> Option<TextureId> + 'a
+where
+    TexMap: Fn(&'a TextureId) -> Option<TextureId> + 'a,
 {
     /// # Arguments
     /// - `instructions` - A list of instructions to batch.
@@ -74,9 +77,9 @@ impl<'a, TexMap> GraphicsInstructionBatcher<'a, TexMap>
     }
 }
 
-impl<'a, TexMap> Iterator
-    for GraphicsInstructionBatcher<'a, TexMap>
-    where TexMap: Fn(&'a TextureId) -> Option<TextureId> + 'a
+impl<'a, TexMap> Iterator for GraphicsInstructionBatcher<'a, TexMap>
+where
+    TexMap: Fn(&'a TextureId) -> Option<TextureId> + 'a,
 {
     type Item = InstructionBatch<'a>;
 
@@ -86,16 +89,14 @@ impl<'a, TexMap> Iterator
         }
 
         let first_instr = &self.instructions[self.instruction_start];
-        let render_texture = (self.get_renderer_texture)(&first_instr.texture_id).unwrap_or(
-            first_instr.texture_id.clone()
-        );
+        let render_texture = (self.get_renderer_texture)(&first_instr.texture_id)
+            .unwrap_or(first_instr.texture_id.clone());
 
         let mut end = self.instruction_start;
 
         while let Some(next_instr) = self.instructions_iter.peek() {
-            let next_render_texture = (self.get_renderer_texture)(&next_instr.texture_id).unwrap_or(
-                next_instr.texture_id.clone()
-            );
+            let next_render_texture = (self.get_renderer_texture)(&next_instr.texture_id)
+                .unwrap_or(next_instr.texture_id.clone());
 
             if next_render_texture != render_texture {
                 break;
@@ -135,9 +136,9 @@ impl<'a> Iterator for InstructionBatch<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ quad, TextureId };
+    use crate::{quad, TextureId};
 
-    use super::{ GraphicsInstruction, GraphicsInstructionBatcher };
+    use super::{GraphicsInstruction, GraphicsInstructionBatcher};
 
     fn get_instructions() -> [GraphicsInstruction; 12] {
         [
@@ -183,7 +184,11 @@ mod tests {
     fn test_render_texture() {
         let instructions = get_instructions();
         let batcher = GraphicsInstructionBatcher::new(&instructions, |tex| {
-            if tex == &TextureId::User(1) { Some(TextureId::Internal(1)) } else { None }
+            if tex == &TextureId::User(1) {
+                Some(TextureId::Internal(1))
+            } else {
+                None
+            }
         });
 
         let mut iter = batcher.into_iter();

@@ -6,15 +6,18 @@ pub use error::*;
 
 pub use wgpu::*;
 
+#[cfg(target_arch = "wasm32")]
+pub mod web;
+
 #[derive(Debug, Clone)]
-pub struct GpuContext {
+pub struct Context {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub instance: wgpu::Instance,
     pub adapter: wgpu::Adapter,
 }
 
-impl Deref for GpuContext {
+impl Deref for Context {
     type Target = wgpu::Device;
 
     fn deref(&self) -> &Self::Target {
@@ -22,36 +25,52 @@ impl Deref for GpuContext {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct GpuContextCreateOptions<'a, 'window> {
-    pub power_preference: wgpu::PowerPreference,
-    pub compatible_surface: Option<&'a wgpu::Surface<'window>>,
+pub fn create_instance(desc: &wgpu::InstanceDescriptor) -> wgpu::Instance {
+    wgpu::Instance::new(desc)
 }
 
-impl GpuContext {
-    pub fn create_instance(desc: &wgpu::InstanceDescriptor) -> wgpu::Instance {
-        wgpu::Instance::new(desc)
+pub async fn create_instance_with_wgpu_detection(
+    desc: &wgpu::InstanceDescriptor
+) -> wgpu::Instance {
+    wgpu::util::new_instance_with_webgpu_detection(desc).await
+}
+
+#[derive(Debug, Default)]
+pub struct ContextSpecification<'a, 'window> {
+    pub power_preference: wgpu::PowerPreference,
+    pub compatible_surface: Option<&'a wgpu::Surface<'window>>,
+    pub backends: wgpu::Backends,
+}
+
+impl Context {
+    // On wasm we need to have a canvas to create an adapter if using webgl so we decided to only allow to create a context when a canvas is provided use `new_web`
+    // #[cfg(not(target_arch = "wasm32"))]
+    pub async fn new<'a, 'window>(
+        options: &ContextSpecification<'a, 'window>
+    ) -> Result<Self, error::GpuContextCreateError> {
+        let instance = Instance::new(
+            &(wgpu::InstanceDescriptor {
+                backends: options.backends,
+                ..Default::default()
+            })
+        );
+
+        Self::create(instance, options).await
     }
 
-    pub async fn create_instance_with_wgpu_detection(
-        desc: &wgpu::InstanceDescriptor
-    ) -> wgpu::Instance {
-        wgpu::util::new_instance_with_webgpu_detection(desc).await
-    }
-
-    async fn create_gpu_context<'a, 'window>(
+    pub(crate) async fn create<'a, 'window>(
         instance: wgpu::Instance,
-        options: &GpuContextCreateOptions<'a, 'window>
+        specs: &ContextSpecification<'a, 'window>
     ) -> Result<Self, error::GpuContextCreateError> {
         let adapter = instance
             .request_adapter(
                 &(wgpu::RequestAdapterOptions {
-                    power_preference: options.power_preference,
+                    power_preference: specs.power_preference,
                     force_fallback_adapter: false,
-                    compatible_surface: options.compatible_surface,
+                    compatible_surface: specs.compatible_surface,
                 })
             ).await
-            .map_err(|err| error::GpuContextCreateError::RequestAdapterError(err))?;
+            .map_err(error::GpuContextCreateError::RequestAdapterError)?;
 
         let adapter_info = adapter.get_info();
         log::info!("Adapter: {:#?}", adapter_info);
@@ -76,13 +95,6 @@ impl GpuContext {
             instance,
             adapter,
         })
-    }
-
-    pub async fn new<'a, 'window>(
-        instance: wgpu::Instance,
-        options: &GpuContextCreateOptions<'a, 'window>
-    ) -> Result<Self, error::GpuContextCreateError> {
-        Self::create_gpu_context(instance, options).await
     }
 
     pub fn create_command_encoder(&self, label: Option<&str>) -> wgpu::CommandEncoder {
@@ -136,7 +148,7 @@ impl GpuContext {
     }
 
     #[inline]
-    pub fn create_texture_init_impl(
+    fn create_texture_init_impl(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         format: wgpu::TextureFormat,

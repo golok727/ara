@@ -1,10 +1,10 @@
-use ara::GpuContext;
+use ara::Context;
 use pollster::FutureExt;
 
 mod basic;
 struct Example {
     name: &'static str,
-    run: fn(gpu: GpuContext) -> (),
+    run: fn(gpu: ara::Context) -> (),
 }
 
 const EXAMPLES: &[Example] = &[
@@ -35,10 +35,13 @@ fn main() {
             std::process::exit(1);
         });
 
-    let instance = GpuContext::create_instance(&ara::gpu::InstanceDescriptor::default());
-
-    let gpu = ara::GpuContext
-        ::new(instance, &Default::default())
+    let gpu = Context::new(
+        &(ara::gpu::ContextSpecification {
+            power_preference: ara::gpu::PowerPreference::HighPerformance,
+            backends: ara::gpu::Backends::all(),
+            ..Default::default()
+        })
+    )
         .block_on()
         .expect("Failed to create GPU context");
 

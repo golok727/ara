@@ -1,7 +1,7 @@
 //! A Rust port of the [Earcut](https://github.com/mapbox/earcut) polygon triangulation library.
 //!https://github.com/MIERUNE/earcut-rs/blob/main/src/lib.rs#L16
 
-use std::{ cmp::Ordering, num::NonZeroU32, ptr };
+use std::{cmp::Ordering, num::NonZeroU32, ptr};
 
 use num_traits::float::Float;
 
@@ -98,12 +98,8 @@ impl<T: Float> Node<T> {
         Self {
             i,
             xy,
-            prev_i: unsafe {
-                NodeIndex::new_unchecked(1)
-            },
-            next_i: unsafe {
-                NodeIndex::new_unchecked(1)
-            },
+            prev_i: unsafe { NodeIndex::new_unchecked(1) },
+            next_i: unsafe { NodeIndex::new_unchecked(1) },
             z: 0,
             prev_z_i: None,
             next_z_i: None,
@@ -149,7 +145,8 @@ impl<T: Float> Earcut<T> {
     fn reset(&mut self, capacity: usize) {
         self.nodes.clear();
         self.nodes.reserve(capacity);
-        self.nodes.push(Node::new(0, [T::infinity(), T::infinity()])); // dummy node
+        self.nodes
+            .push(Node::new(0, [T::infinity(), T::infinity()])); // dummy node
     }
 
     /// Performs the earcut triangulation on a polygon.
@@ -160,7 +157,7 @@ impl<T: Float> Earcut<T> {
         data: impl IntoIterator<Item = [T; 2]>,
         hole_indices: &[N],
         triangles_out: &mut Vec<N>,
-        clear_out: bool
+        clear_out: bool,
     ) -> bool {
         self.data.clear();
         self.data.extend(data);
@@ -172,7 +169,7 @@ impl<T: Float> Earcut<T> {
         }
 
         self.earcut_impl(hole_indices, triangles_out);
-        return true;
+        true
     }
 
     pub fn earcut_impl<N: Index>(&mut self, hole_indices: &[N], triangles_out: &mut Vec<N>) {
@@ -204,14 +201,19 @@ impl<T: Float> Earcut<T> {
 
         // if the shape is not too simple, we'll use z-order curve hash later; calculate polygon bbox
         if self.data.len() > 80 {
-            let [max_x, max_y] = self.data[1..outer_len].iter().fold(self.data[0], |[ax, ay], b| {
-                let (bx, by) = (b[0], b[1]);
-                [T::max(ax, bx), T::max(ay, by)]
-            });
-            [min_x, min_y] = self.data[1..outer_len].iter().fold(self.data[0], |[ax, ay], b| {
-                let (bx, by) = (b[0], b[1]);
-                [T::min(ax, bx), T::min(ay, by)]
-            });
+            let [max_x, max_y] =
+                self.data[1..outer_len]
+                    .iter()
+                    .fold(self.data[0], |[ax, ay], b| {
+                        let (bx, by) = (b[0], b[1]);
+                        [T::max(ax, bx), T::max(ay, by)]
+                    });
+            [min_x, min_y] = self.data[1..outer_len]
+                .iter()
+                .fold(self.data[0], |[ax, ay], b| {
+                    let (bx, by) = (b[0], b[1]);
+                    [T::min(ax, bx), T::min(ay, by)]
+                });
             // minX, minY and invSize are later used to transform coords into integers for z-order calculation
             inv_size = (max_x - min_x).max(max_y - min_y);
             if inv_size != T::zero() {
@@ -226,7 +228,7 @@ impl<T: Float> Earcut<T> {
             min_x,
             min_y,
             inv_size,
-            Pass::P0
+            Pass::P0,
         );
     }
 
@@ -263,7 +265,7 @@ impl<T: Float> Earcut<T> {
     fn eliminate_holes<N: Index>(
         &mut self,
         hole_indices: &[N],
-        mut outer_node_i: NodeIndex
+        mut outer_node_i: NodeIndex,
     ) -> NodeIndex {
         self.queue.clear();
         for (i, hi) in hole_indices.iter().enumerate() {
@@ -283,7 +285,8 @@ impl<T: Float> Earcut<T> {
             }
         }
 
-        self.queue.sort_by(|(_a, ax), (_b, bx)| ax.partial_cmp(bx).unwrap_or(Ordering::Equal));
+        self.queue
+            .sort_by(|(_a, ax), (_b, bx)| ax.partial_cmp(bx).unwrap_or(Ordering::Equal));
 
         // process holes from left to right
         for &(q, _) in &self.queue {
@@ -310,7 +313,7 @@ fn earcut_linked<T: Float, N: Index>(
     min_x: T,
     min_y: T,
     inv_size: T,
-    pass: Pass
+    pass: Pass,
 ) {
     let mut ear_i = ear_i;
 
@@ -377,7 +380,7 @@ fn earcut_linked<T: Float, N: Index>(
 /// check whether a polygon node forms a valid ear with adjacent nodes
 fn is_ear<'a, T: Float>(
     nodes: &'a [Node<T>],
-    ear: &'a Node<T>
+    ear: &'a Node<T>,
 ) -> (bool, &'a Node<T>, &'a Node<T>) {
     let b = ear;
     let a = node!(nodes, b.prev_i);
@@ -400,13 +403,12 @@ fn is_ear<'a, T: Float>(
     let mut p_prev = node!(nodes, p.prev_i);
     while !ptr::eq(p, a) {
         let p_next = node!(nodes, p.next_i);
-        if
-            p.xy[0] >= x0 &&
-            p.xy[0] <= x1 &&
-            p.xy[1] >= y0 &&
-            p.xy[1] <= y1 &&
-            point_in_triangle(a.xy, b.xy, c.xy, p.xy) &&
-            area(p_prev, p, p_next) >= T::zero()
+        if p.xy[0] >= x0
+            && p.xy[0] <= x1
+            && p.xy[1] >= y0
+            && p.xy[1] <= y1
+            && point_in_triangle(a.xy, b.xy, c.xy, p.xy)
+            && area(p_prev, p, p_next) >= T::zero()
         {
             return (false, a, c);
         }
@@ -420,7 +422,7 @@ fn is_ear_hashed<'a, T: Float>(
     ear: &'a Node<T>,
     min_x: T,
     min_y: T,
-    inv_size: T
+    inv_size: T,
 ) -> (bool, &'a Node<T>, &'a Node<T>) {
     let b = ear;
     let a = node!(nodes, b.prev_i);
@@ -432,8 +434,14 @@ fn is_ear_hashed<'a, T: Float>(
     }
 
     // triangle bbox
-    let xy_min = [a.xy[0].min(b.xy[0].min(c.xy[0])), a.xy[1].min(b.xy[1].min(c.xy[1]))];
-    let xy_max = [a.xy[0].max(b.xy[0].max(c.xy[0])), a.xy[1].max(b.xy[1].max(c.xy[1]))];
+    let xy_min = [
+        a.xy[0].min(b.xy[0].min(c.xy[0])),
+        a.xy[1].min(b.xy[1].min(c.xy[1])),
+    ];
+    let xy_max = [
+        a.xy[0].max(b.xy[0].max(c.xy[0])),
+        a.xy[1].max(b.xy[1].max(c.xy[1])),
+    ];
 
     // z-order range for the current triangle bbox;
     let min_z = z_order(xy_min, min_x, min_y, inv_size);
@@ -457,29 +465,27 @@ fn is_ear_hashed<'a, T: Float>(
             break;
         }
 
-        if
-            (p.xy[0] >= xy_min[0]) &
-                (p.xy[0] <= xy_max[0]) &
-                (p.xy[1] >= xy_min[1]) &
-                (p.xy[1] <= xy_max[1]) &&
-            !ptr::eq(p, a) &&
-            !ptr::eq(p, c) &&
-            point_in_triangle(a.xy, b.xy, c.xy, p.xy) &&
-            area(node!(nodes, p.prev_i), p, node!(nodes, p.next_i)) >= T::zero()
+        if (p.xy[0] >= xy_min[0])
+            & (p.xy[0] <= xy_max[0])
+            & (p.xy[1] >= xy_min[1])
+            & (p.xy[1] <= xy_max[1])
+            && !ptr::eq(p, a)
+            && !ptr::eq(p, c)
+            && point_in_triangle(a.xy, b.xy, c.xy, p.xy)
+            && area(node!(nodes, p.prev_i), p, node!(nodes, p.next_i)) >= T::zero()
         {
             return (false, a, c);
         }
         o_p = p.prev_z_i.map(|i| node!(nodes, i));
 
-        if
-            (n.xy[0] >= xy_min[0]) &
-                (n.xy[0] <= xy_max[0]) &
-                (n.xy[1] >= xy_min[1]) &
-                (n.xy[1] <= xy_max[1]) &&
-            !ptr::eq(n, a) &&
-            !ptr::eq(n, c) &&
-            point_in_triangle(a.xy, b.xy, c.xy, n.xy) &&
-            area(node!(nodes, n.prev_i), n, node!(nodes, n.next_i)) >= T::zero()
+        if (n.xy[0] >= xy_min[0])
+            & (n.xy[0] <= xy_max[0])
+            & (n.xy[1] >= xy_min[1])
+            & (n.xy[1] <= xy_max[1])
+            && !ptr::eq(n, a)
+            && !ptr::eq(n, c)
+            && point_in_triangle(a.xy, b.xy, c.xy, n.xy)
+            && area(node!(nodes, n.prev_i), n, node!(nodes, n.next_i)) >= T::zero()
         {
             return (false, a, c);
         }
@@ -491,15 +497,14 @@ fn is_ear_hashed<'a, T: Float>(
         if p.z < min_z {
             break;
         }
-        if
-            (p.xy[0] >= xy_min[0]) &
-                (p.xy[0] <= xy_max[0]) &
-                (p.xy[1] >= xy_min[1]) &
-                (p.xy[1] <= xy_max[1]) &&
-            !ptr::eq(p, a) &&
-            !ptr::eq(p, c) &&
-            point_in_triangle(a.xy, b.xy, c.xy, p.xy) &&
-            area(node!(nodes, p.prev_i), p, node!(nodes, p.next_i)) >= T::zero()
+        if (p.xy[0] >= xy_min[0])
+            & (p.xy[0] <= xy_max[0])
+            & (p.xy[1] >= xy_min[1])
+            & (p.xy[1] <= xy_max[1])
+            && !ptr::eq(p, a)
+            && !ptr::eq(p, c)
+            && point_in_triangle(a.xy, b.xy, c.xy, p.xy)
+            && area(node!(nodes, p.prev_i), p, node!(nodes, p.next_i)) >= T::zero()
         {
             return (false, a, c);
         }
@@ -511,15 +516,14 @@ fn is_ear_hashed<'a, T: Float>(
         if n.z > max_z {
             break;
         }
-        if
-            (n.xy[0] >= xy_min[0]) &
-                (n.xy[0] <= xy_max[0]) &
-                (n.xy[1] >= xy_min[1]) &
-                (n.xy[1] <= xy_max[1]) &&
-            !ptr::eq(n, a) &&
-            !ptr::eq(n, c) &&
-            point_in_triangle(a.xy, b.xy, c.xy, n.xy) &&
-            area(node!(nodes, n.prev_i), n, node!(nodes, n.next_i)) >= T::zero()
+        if (n.xy[0] >= xy_min[0])
+            & (n.xy[0] <= xy_max[0])
+            & (n.xy[1] >= xy_min[1])
+            & (n.xy[1] <= xy_max[1])
+            && !ptr::eq(n, a)
+            && !ptr::eq(n, c)
+            && point_in_triangle(a.xy, b.xy, c.xy, n.xy)
+            && area(node!(nodes, n.prev_i), n, node!(nodes, n.next_i)) >= T::zero()
         {
             return (false, a, c);
         }
@@ -533,7 +537,7 @@ fn is_ear_hashed<'a, T: Float>(
 fn cure_local_intersections<T: Float, N: Index>(
     nodes: &mut [Node<T>],
     mut start_i: NodeIndex,
-    triangles: &mut Vec<N>
+    triangles: &mut Vec<N>,
 ) -> NodeIndex {
     let mut p_i = start_i;
     loop {
@@ -544,11 +548,10 @@ fn cure_local_intersections<T: Float, N: Index>(
         let a = node!(nodes, p.prev_i);
         let b = node!(nodes, b_i);
 
-        if
-            !equals(a, b) &&
-            intersects(a, p, p_next, b) &&
-            locally_inside(nodes, a, b) &&
-            locally_inside(nodes, b, a)
+        if !equals(a, b)
+            && intersects(a, p, p_next, b)
+            && locally_inside(nodes, a, b)
+            && locally_inside(nodes, b, a)
         {
             triangles.extend([
                 N::from_usize(a.i as usize),
@@ -579,7 +582,7 @@ fn split_earcut<T: Float, N: Index>(
     triangles: &mut Vec<N>,
     min_x: T,
     min_y: T,
-    inv_size: T
+    inv_size: T,
 ) {
     // look for a valid diagonal that divides the polygon into two
     let mut ai = start_i;
@@ -623,7 +626,7 @@ fn index_curve<T: Float>(
     start_i: NodeIndex,
     min_x: T,
     min_y: T,
-    inv_size: T
+    inv_size: T,
 ) {
     let mut p_i = start_i;
     let mut p = node_mut!(nodes, p_i);
@@ -764,7 +767,7 @@ fn is_valid_diagonal<T: Float>(
     a: &Node<T>,
     b: &Node<T>,
     a_next: &Node<T>,
-    a_prev: &Node<T>
+    a_prev: &Node<T>,
 ) -> bool {
     let b_next = node!(nodes, b.next_i);
     let b_prev = node!(nodes, b.prev_i);
@@ -802,12 +805,11 @@ fn intersects_polygon<T: Float>(nodes: &[Node<T>], a: &Node<T>, b: &Node<T>) -> 
     let mut p = a;
     loop {
         let p_next = node!(nodes, p.next_i);
-        if
-            p.i != a.i &&
-            p.i != b.i &&
-            p_next.i != a.i &&
-            p_next.i != b.i &&
-            intersects(p, p_next, a, b)
+        if p.i != a.i
+            && p.i != b.i
+            && p_next.i != a.i
+            && p_next.i != b.i
+            && intersects(p, p_next, a, b)
         {
             return true;
         }
@@ -826,10 +828,10 @@ fn middle_inside<T: Float>(nodes: &[Node<T>], a: &Node<T>, b: &Node<T>) -> bool 
     let (px, py) = ((a.xy[0] + b.xy[0]) / two, (a.xy[1] + b.xy[1]) / two);
     loop {
         let p_next = node!(nodes, p.next_i);
-        inside ^=
-            (p.xy[1] > py) != (p_next.xy[1] > py) &&
-            p_next.xy[1] != p.xy[1] &&
-            px < ((p_next.xy[0] - p.xy[0]) * (py - p.xy[1])) / (p_next.xy[1] - p.xy[1]) + p.xy[0];
+        inside ^= (p.xy[1] > py) != (p_next.xy[1] > py)
+            && p_next.xy[1] != p.xy[1]
+            && px
+                < ((p_next.xy[0] - p.xy[0]) * (py - p.xy[1])) / (p_next.xy[1] - p.xy[1]) + p.xy[0];
         p = p_next;
         if ptr::eq(p, a) {
             return inside;
@@ -841,7 +843,7 @@ fn middle_inside<T: Float>(nodes: &[Node<T>], a: &Node<T>, b: &Node<T>) -> bool 
 fn eliminate_hole<T: Float>(
     nodes: &mut Vec<Node<T>>,
     hole_i: NodeIndex,
-    outer_node_i: NodeIndex
+    outer_node_i: NodeIndex,
 ) -> NodeIndex {
     let Some(bridge_i) = find_hole_bridge(nodes, node!(nodes, hole_i), outer_node_i) else {
         return outer_node_i;
@@ -870,7 +872,7 @@ fn locally_inside<T: Float>(nodes: &[Node<T>], a: &Node<T>, b: &Node<T>) -> bool
 fn find_hole_bridge<T: Float>(
     nodes: &[Node<T>],
     hole: &Node<T>,
-    outer_node_i: NodeIndex
+    outer_node_i: NodeIndex,
 ) -> Option<NodeIndex> {
     let mut p_i = outer_node_i;
     let mut qx = T::neg_infinity();
@@ -882,12 +884,15 @@ fn find_hole_bridge<T: Float>(
     loop {
         let p_next = node!(nodes, p.next_i);
         if hole.xy[1] <= p.xy[1] && hole.xy[1] >= p_next.xy[1] && p_next.xy[1] != p.xy[1] {
-            let x =
-                p.xy[0] +
-                ((hole.xy[1] - p.xy[1]) * (p_next.xy[0] - p.xy[0])) / (p_next.xy[1] - p.xy[1]);
+            let x = p.xy[0]
+                + ((hole.xy[1] - p.xy[1]) * (p_next.xy[0] - p.xy[0])) / (p_next.xy[1] - p.xy[1]);
             if x <= hole.xy[0] && x > qx {
                 qx = x;
-                m_i = Some(if p.xy[0] < p_next.xy[0] { p_i } else { p.next_i });
+                m_i = Some(if p.xy[0] < p_next.xy[0] {
+                    p_i
+                } else {
+                    p.next_i
+                });
                 if x == hole.xy[0] {
                     // hole touches outer segment; pick leftmost endpoint
                     return m_i;
@@ -916,23 +921,27 @@ fn find_hole_bridge<T: Float>(
     let mut p = m;
 
     loop {
-        if
-            (hole.xy[0] >= p.xy[0]) & (p.xy[0] >= mxmy[0]) &&
-            hole.xy[0] != p.xy[0] &&
-            point_in_triangle(
-                [if hole.xy[1] < mxmy[1] { hole.xy[0] } else { qx }, hole.xy[1]],
+        if (hole.xy[0] >= p.xy[0]) & (p.xy[0] >= mxmy[0])
+            && hole.xy[0] != p.xy[0]
+            && point_in_triangle(
+                [
+                    if hole.xy[1] < mxmy[1] { hole.xy[0] } else { qx },
+                    hole.xy[1],
+                ],
                 mxmy,
-                [if hole.xy[1] < mxmy[1] { qx } else { hole.xy[0] }, hole.xy[1]],
-                p.xy
+                [
+                    if hole.xy[1] < mxmy[1] { qx } else { hole.xy[0] },
+                    hole.xy[1],
+                ],
+                p.xy,
             )
         {
             let tan = (hole.xy[1] - p.xy[1]).abs() / (hole.xy[0] - p.xy[0]);
-            if
-                locally_inside(nodes, p, hole) &&
-                (tan < tan_min ||
-                    (tan == tan_min &&
-                        (p.xy[0] > m.xy[0] ||
-                            (p.xy[0] == m.xy[0] && sector_contains_sector(nodes, m, p)))))
+            if locally_inside(nodes, p, hole)
+                && (tan < tan_min
+                    || (tan == tan_min
+                        && (p.xy[0] > m.xy[0]
+                            || (p.xy[0] == m.xy[0] && sector_contains_sector(nodes, m, p)))))
             {
                 (m_i, m) = (p_i, p);
                 tan_min = tan;
@@ -949,15 +958,15 @@ fn find_hole_bridge<T: Float>(
 
 /// whether sector in vertex m contains sector in vertex p in the same coordinates
 fn sector_contains_sector<T: Float>(nodes: &[Node<T>], m: &Node<T>, p: &Node<T>) -> bool {
-    area(node!(nodes, m.prev_i), m, node!(nodes, p.prev_i)) < T::zero() &&
-        area(node!(nodes, p.next_i), m, node!(nodes, m.next_i)) < T::zero()
+    area(node!(nodes, m.prev_i), m, node!(nodes, p.prev_i)) < T::zero()
+        && area(node!(nodes, p.next_i), m, node!(nodes, m.next_i)) < T::zero()
 }
 
 /// eliminate colinear or duplicate points
 fn filter_points<T: Float>(
     nodes: &mut [Node<T>],
     start_i: NodeIndex,
-    end_i: Option<NodeIndex>
+    end_i: Option<NodeIndex>,
 ) -> NodeIndex {
     let mut end_i = end_i.unwrap_or(start_i);
 
@@ -965,9 +974,7 @@ fn filter_points<T: Float>(
     let mut p = node!(nodes, p_i);
     loop {
         let p_next = node!(nodes, p.next_i);
-        if
-            !p.steiner &&
-            (equals(p, p_next) || area(node!(nodes, p.prev_i), p, p_next) == T::zero())
+        if !p.steiner && (equals(p, p_next) || area(node!(nodes, p.prev_i), p, p_next) == T::zero())
         {
             let (prev_i, next_i) = remove_node(nodes, p.link_info());
             (p_i, end_i) = (prev_i, prev_i);
@@ -1019,7 +1026,7 @@ fn insert_node<T: Float>(
     nodes: &mut Vec<Node<T>>,
     i: u32,
     xy: [T; 2],
-    last: Option<NodeIndex>
+    last: Option<NodeIndex>,
 ) -> NodeIndex {
     let mut p = Node::new(i, xy);
     let p_i = unsafe { NodeIndex::new_unchecked(nodes.len() as u32) };
@@ -1069,7 +1076,7 @@ fn remove_node<T: Float>(nodes: &mut [Node<T>], pl: LinkInfo) -> (NodeIndex, Nod
 pub fn deviation<T: Float, N: Index>(
     data: impl IntoIterator<Item = [T; 2]>,
     hole_indices: &[N],
-    triangles: &[N]
+    triangles: &[N],
 ) -> T {
     let data = data.into_iter().collect::<Vec<[T; 2]>>();
     let has_holes = !hole_indices.is_empty();
@@ -1098,16 +1105,17 @@ pub fn deviation<T: Float, N: Index>(
     };
 
     let mut triangles_area = T::zero();
-    for [a, b, c] in triangles.chunks_exact(3).map(|idxs| [idxs[0], idxs[1], idxs[2]]) {
+    for [a, b, c] in triangles
+        .chunks_exact(3)
+        .map(|idxs| [idxs[0], idxs[1], idxs[2]])
+    {
         let a = a.into_usize();
         let b = b.into_usize();
         let c = c.into_usize();
-        triangles_area =
-            triangles_area +
-            (
-                (data[a][0] - data[c][0]) * (data[b][1] - data[a][1]) -
-                (data[a][0] - data[b][0]) * (data[c][1] - data[a][1])
-            ).abs();
+        triangles_area = triangles_area
+            + ((data[a][0] - data[c][0]) * (data[b][1] - data[a][1])
+                - (data[a][0] - data[b][0]) * (data[c][1] - data[a][1]))
+                .abs();
     }
     if polygon_area == T::zero() && triangles_area == T::zero() {
         T::zero()
@@ -1142,9 +1150,9 @@ fn z_order<T: Float>(xy: [T; 2], min_x: T, min_y: T, inv_size: T) -> i32 {
 
 #[allow(clippy::too_many_arguments)]
 fn point_in_triangle<T: Float>(a: [T; 2], b: [T; 2], c: [T; 2], p: [T; 2]) -> bool {
-    (c[0] - p[0]) * (a[1] - p[1]) >= (a[0] - p[0]) * (c[1] - p[1]) &&
-        (a[0] - p[0]) * (b[1] - p[1]) >= (b[0] - p[0]) * (a[1] - p[1]) &&
-        (b[0] - p[0]) * (c[1] - p[1]) >= (c[0] - p[0]) * (b[1] - p[1])
+    (c[0] - p[0]) * (a[1] - p[1]) >= (a[0] - p[0]) * (c[1] - p[1])
+        && (a[0] - p[0]) * (b[1] - p[1]) >= (b[0] - p[0]) * (a[1] - p[1])
+        && (b[0] - p[0]) * (c[1] - p[1]) >= (c[0] - p[0]) * (b[1] - p[1])
 }
 
 /// signed area of a triangle
@@ -1159,8 +1167,8 @@ fn equals<T: Float>(p1: &Node<T>, p2: &Node<T>) -> bool {
 
 /// for collinear points p, q, r, check if point q lies on segment pr
 fn on_segment<T: Float>(p: &Node<T>, q: &Node<T>, r: &Node<T>) -> bool {
-    (q.xy[0] <= p.xy[0].max(r.xy[0])) & (q.xy[1] <= p.xy[1].max(r.xy[1])) &&
-        (q.xy[0] >= p.xy[0].min(r.xy[0])) & (q.xy[1] >= p.xy[1].min(r.xy[1]))
+    (q.xy[0] <= p.xy[0].max(r.xy[0])) & (q.xy[1] <= p.xy[1].max(r.xy[1]))
+        && (q.xy[0] >= p.xy[0].min(r.xy[0])) & (q.xy[1] >= p.xy[1].min(r.xy[1]))
 }
 
 fn sign<T: Float>(v: T) -> i32 {

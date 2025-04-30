@@ -1,4 +1,4 @@
-use crate::gpu::GpuContext;
+use crate::gpu::Context;
 use crate::math::{Rect, Size, Vec2};
 
 use super::{GpuTexture, GpuTextureView, TextureFormat, TextureKind};
@@ -33,14 +33,14 @@ pub type AtlasTextureInfoMap<Key> = ahash::AHashMap<Key, AtlasTextureInfo>;
 
 #[derive(Debug)]
 struct AtlasStorage<Key: AtlasKeySource> {
-    gpu: GpuContext,
+    gpu: Context,
     gray_textures: AtlasTextureList<Option<AtlasTexture>>,
     color_textures: AtlasTextureList<Option<AtlasTexture>>,
     key_to_tile: ahash::AHashMap<Key, AtlasTile>,
 }
 
 impl<Key: AtlasKeySource> TextureAtlas<Key> {
-    pub fn new(gpu: GpuContext) -> Self {
+    pub fn new(gpu: Context) -> Self {
         Self(Mutex::new(AtlasStorage::<Key> {
             gpu,
             gray_textures: Default::default(),
@@ -232,20 +232,22 @@ impl<Key: AtlasKeySource> AtlasStorage<Key> {
         let size = DEFAULT_SIZE.max(&size);
         let format = kind.get_texture_format();
 
-        let raw = self.gpu.create_texture(&wgpu::TextureDescriptor {
-            label: Some("atlas_texture"),
-            size: wgpu::Extent3d {
-                width: size.width as u32,
-                height: size.height as u32,
-                depth_or_array_layers: 1,
-            },
-            dimension: wgpu::TextureDimension::D2,
-            format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            mip_level_count: 1,
-            sample_count: 1,
-            view_formats: &[],
-        });
+        let raw = self.gpu.create_texture(
+            &(wgpu::TextureDescriptor {
+                label: Some("atlas_texture"),
+                size: wgpu::Extent3d {
+                    width: size.width as u32,
+                    height: size.height as u32,
+                    depth_or_array_layers: 1,
+                },
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                mip_level_count: 1,
+                sample_count: 1,
+                view_formats: &[],
+            }),
+        );
 
         let bytes_per_pixel = kind.bytes_per_pixel();
 
@@ -401,12 +403,12 @@ pub struct AtlasTextureInfo {
 impl AtlasTextureInfo {
     pub fn uv_to_atlas_space(&self, u: f32, v: f32) -> Vec2<f32> {
         // Scale the normalized coordinates (u, v) to the bounds of the texture tile in the atlas
-        let tex_x = self.tile.bounds.origin.x as f32 + u * self.tile.bounds.size.width as f32;
-        let tex_y = self.tile.bounds.origin.y as f32 + v * self.tile.bounds.size.height as f32;
+        let tex_x = (self.tile.bounds.origin.x as f32) + u * (self.tile.bounds.size.width as f32);
+        let tex_y = (self.tile.bounds.origin.y as f32) + v * (self.tile.bounds.size.height as f32);
 
         // Convert to atlas space
-        let atlas_x = tex_x / self.atlas_texture_size.width as f32;
-        let atlas_y = tex_y / self.atlas_texture_size.height as f32;
+        let atlas_x = tex_x / (self.atlas_texture_size.width as f32);
+        let atlas_y = tex_y / (self.atlas_texture_size.height as f32);
 
         Vec2::new(atlas_x, atlas_y)
     }

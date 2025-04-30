@@ -12,55 +12,34 @@ pub use path::*;
 
 pub use ara_math as math;
 
-pub use canvas::Canvas;
-pub use gpu::{ GpuContext, GpuContextCreateError };
+pub use gpu::{Context, ContextSpecification, GpuContextCreateError};
 
-pub use math::{ mat3, vec2, Corners, Mat3, Rect, Size, Vec2 };
-pub use paint::color::{ Color, Rgba };
+pub use math::{mat3, vec2, Corners, Mat3, Rect, Size, Vec2};
+pub use paint::color::{Color, Rgba};
 pub use paint::DrawList;
 pub use paint::{
-    circle,
-    quad,
-    AtlasKey,
-    AtlasKeySource,
-    AtlasTextureInfo,
-    AtlasTextureInfoMap,
-    Brush,
-    Circle,
-    FillStyle,
-    LineCap,
-    LineJoin,
-    Quad,
-    AraAtlas,
-    StrokeStyle,
-    Text,
-    TextAlign,
-    TextBaseline,
+    circle, quad, AraAtlas, AtlasKey, AtlasKeySource, AtlasTextureInfo, AtlasTextureInfoMap, Brush,
+    Circle, FillStyle, LineCap, LineJoin, Quad, StrokeStyle, Text, TextAlign, TextBaseline,
     TextureAtlas,
 };
 
+#[cfg(target_arch = "wasm32")]
+pub use canvas::web::WebSurfaceTarget;
+
 pub use canvas::{
-    backend_target::BackendRenderTarget,
-    offscreen_target::OffscreenRenderTarget,
-    snapshot::{ CanvasSnapshot, CanvasSnapshotResult, CanvasSnapshotSource },
-    target::RenderTarget,
+    backend_context::BackendRenderContext,
+    offscreen_context::OffscreenRenderContext,
+    render_context::{MsaaSampleLevel, RenderContext, RenderContextConfig},
+    snapshot::{CanvasSnapshot, CanvasSnapshotResult, CanvasSnapshotSource},
+    Canvas, CanvasConfig,
 };
 pub use paint::{
-    GpuTexture,
-    GpuTextureView,
-    GpuTextureViewDescriptor,
-    Mesh,
-    TextureAddressMode,
-    TextureFilterMode,
-    TextureFormat,
-    TextureId,
-    TextureKind,
-    TextureOptions,
-    PathBrush,
+    GpuTexture, GpuTextureView, GpuTextureViewDescriptor, Mesh, PathBrush, TextureAddressMode,
+    TextureFilterMode, TextureFormat, TextureId, TextureKind, TextureOptions,
 };
 
-pub use renderer::{ Renderer2D, Renderer2DSpecs };
+pub use renderer::{Renderer2D, Renderer2DSpecs};
 
-pub use text::{ Font, FontId, FontStyle, FontWeight, GlyphId, GlyphImage, TextSystem };
+pub use text::{Font, FontId, FontStyle, FontWeight, GlyphId, GlyphImage, TextSystem};
 
 pub use ara_math::traits::*;

@@ -1,12 +1,14 @@
-use ara::{ gpu, vec2, Brush, Canvas, Color, Corners, GpuContext, Half, Rect, Text };
+use ara::{ gpu, vec2, Brush, Canvas, CanvasConfig, Color, Context, Corners, Half, Rect, Text };
 
-pub fn run(gpu: GpuContext) {
-    let mut canvas = Canvas::create()
-        .width(1024)
-        .height(1024)
-        .msaa_samples(4)
-        .add_surface_usage(gpu::TextureUsages::COPY_SRC)
-        .build(gpu.clone());
+pub fn run(gpu: Context) {
+    let mut canvas = Canvas::new(
+        gpu.clone(),
+        CanvasConfig::default()
+            .width(1024)
+            .height(1024)
+            .msaa_samples(ara::MsaaSampleLevel::Four)
+            .add_surface_usage(gpu::TextureUsages::COPY_SRC)
+    );
 
     let mut target = canvas.create_offscreen_target();
 

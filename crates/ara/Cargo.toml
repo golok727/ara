@@ -32,5 +32,12 @@ etagere = "0.2.13"
 # text 
 cosmic-text = "0.12.1"
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3.77", features = [
+    "HtmlCanvasElement",
+    "OffscreenCanvas",
+] }
+
+
 [features]
 default = []

@@ -1,6 +1,6 @@
 use crate::math::Size;
 
-use super::{ atlas::AtlasTextureId, AtlasImage, AtlasKey };
+use super::{atlas::AtlasTextureId, AtlasImage, AtlasKey};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum TextureId {
@@ -162,8 +162,7 @@ impl std::fmt::Display for TextureKind {
 
 // re-export
 pub use wgpu::{
-    Texture as GpuTexture,
-    TextureView as GpuTextureView,
+    Texture as GpuTexture, TextureView as GpuTextureView,
     TextureViewDescriptor as GpuTextureViewDescriptor,
 };
 pub type TextureFormat = wgpu::TextureFormat;

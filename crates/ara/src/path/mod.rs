@@ -84,7 +84,7 @@ impl<'a> PathEventsIter<'a> {
     }
 }
 
-impl<'a> Iterator for PathEventsIter<'a> {
+impl Iterator for PathEventsIter<'_> {
     type Item = PathEvent;
 
     fn next(&mut self) -> Option<Self::Item> {

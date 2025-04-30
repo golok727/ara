@@ -2,29 +2,20 @@ use core::f32;
 use std::cell::RefCell;
 use std::ops::Range;
 
-use ara_math::{ IsZero, Mat3 };
+use ara_math::{IsZero, Mat3};
 
 use super::{
-    Brush,
-    Circle,
-    Color,
-    FillStyle,
-    Mesh,
-    PathBrush,
-    Primitive,
-    Quad,
-    StrokeTessellator,
-    Vertex,
+    Brush, Circle, Color, FillStyle, Mesh, PathBrush, Primitive, Quad, StrokeTessellator, Vertex,
 };
 
 use crate::earcut::Earcut;
-use crate::math::{ Rect, Vec2 };
+use crate::math::{Rect, Vec2};
 use crate::paint::WHITE_UV;
-use crate::{ get_path_bounds, Contour, PathEventsIter, PathGeometryBuilder };
+use crate::{get_path_bounds, Contour, PathEventsIter, PathGeometryBuilder};
 
-use std::ops::{ Deref, DerefMut };
+use std::ops::{Deref, DerefMut};
 
-use crate::path::{ Path, PathBuilder, Point };
+use crate::path::{Path, PathBuilder, Point};
 
 #[derive(Default)]
 struct ScratchPathBuilder {
@@ -67,7 +58,7 @@ impl ScratchPathBuilder {
         brush: &Brush,
         feathering: f32,
         textured: bool,
-        shape_type: ShapeType
+        shape_type: ShapeType,
     ) {
         if brush.fill_style.color.is_transparent() {
             return;
@@ -85,7 +76,7 @@ impl ScratchPathBuilder {
                     textured,
                     feathering,
                     (!stroke_color.is_transparent()).then_some(stroke_color),
-                    |_| {}
+                    |_| {},
                 );
             }
             ShapeType::Concave => {
@@ -97,15 +88,20 @@ impl ScratchPathBuilder {
     fn fill_and_stroke(
         &mut self,
         options: FillAndStrokeOptions,
-        map_points: Option<impl Fn(&mut [Point])>
+        map_points: Option<impl Fn(&mut [Point])>,
     ) {
-        let FillAndStrokeOptions { brush, feathering, shape_type, build_mode, mesh, textured } =
-            options;
+        let FillAndStrokeOptions {
+            brush,
+            feathering,
+            shape_type,
+            build_mode,
+            mesh,
+            textured,
+        } = options;
 
-        let geometry: PathGeometryBuilder<_> = create_geometry_builder_for_path(
-            self.builder.path_events(),
-            &mut self.temp_path_data
-        ).with_auto_segments();
+        let geometry: PathGeometryBuilder<_> =
+            create_geometry_builder_for_path(self.builder.path_events(), &mut self.temp_path_data)
+                .with_auto_segments();
 
         // Different handling based on build mode
         match build_mode {
@@ -125,7 +121,15 @@ impl ScratchPathBuilder {
 
                 let path = &self.temp_path_data[range];
 
-                Self::_fill(mesh, path, &mut self.earcut, &brush, feathering, textured, shape_type);
+                Self::_fill(
+                    mesh,
+                    path,
+                    &mut self.earcut,
+                    brush,
+                    feathering,
+                    textured,
+                    shape_type,
+                );
 
                 StrokeTessellator::add_to_mesh(mesh, path, &brush.stroke_style);
             }
@@ -150,10 +154,10 @@ impl ScratchPathBuilder {
                         mesh,
                         points,
                         &mut self.earcut,
-                        &brush,
+                        brush,
                         feathering,
                         textured,
-                        shape_type
+                        shape_type,
                     );
                     StrokeTessellator::add_to_mesh(mesh, points, &brush.stroke_style);
                 }
@@ -202,7 +206,11 @@ impl DrawList {
 
     #[inline]
     fn _get_feathering(&self, brush: &Brush) -> f32 {
-        if brush.antialias { self.feathering_px } else { 0.0 }
+        if brush.antialias {
+            self.feathering_px
+        } else {
+            0.0
+        }
     }
 
     /// captures any drawlist operations done inside the function `f` and returns a
@@ -238,7 +246,7 @@ impl DrawList {
         quad: &Quad,
         brush: &Brush,
         textured: bool,
-        transform: Option<Mat3>
+        transform: Option<Mat3>,
     ) {
         let has_no_corner_radius = quad.corners.is_zero();
 
@@ -267,7 +275,7 @@ impl DrawList {
                         }
                     }
                 }
-            })
+            }),
         );
     }
 
@@ -276,7 +284,7 @@ impl DrawList {
         circle: &Circle,
         brush: &Brush,
         textured: bool,
-        transform: Option<Mat3>
+        transform: Option<Mat3>,
     ) {
         self.path.clear();
 
@@ -299,7 +307,7 @@ impl DrawList {
                         }
                     }
                 }
-            })
+            }),
         );
     }
 
@@ -324,7 +332,7 @@ impl DrawList {
                         }
                     }
                 }
-            })
+            }),
         );
     }
 
@@ -333,7 +341,7 @@ impl DrawList {
         primitive: &Primitive,
         brush: &Brush,
         textured: bool,
-        transform: Option<Mat3>
+        transform: Option<Mat3>,
     ) {
         match primitive {
             Primitive::Circle(circle) => self.add_circle(circle, brush, textured, transform),
@@ -358,9 +366,11 @@ impl DrawList {
         self.mesh.add_vertex(rect.bottom_left(), color, (0.0, 1.0)); // Bottom-left
         self.mesh.add_vertex(rect.bottom_right(), color, (1.0, 1.0)); // Bottom-right
 
-        self.mesh.add_triangle(v_index_offset, v_index_offset + 1, v_index_offset + 2);
+        self.mesh
+            .add_triangle(v_index_offset, v_index_offset + 1, v_index_offset + 2);
 
-        self.mesh.add_triangle(v_index_offset + 2, v_index_offset + 1, v_index_offset + 3);
+        self.mesh
+            .add_triangle(v_index_offset + 2, v_index_offset + 1, v_index_offset + 3);
     }
 
     #[allow(unused)]
@@ -371,9 +381,10 @@ impl DrawList {
         origin: Vec2<f32>,
         start: Vec2<f32>,
         end: Vec2<f32>,
-        clockwise: bool
+        clockwise: bool,
     ) {
-        self.mesh.add_triangle_fan(color, connect_to, origin, start, end, clockwise);
+        self.mesh
+            .add_triangle_fan(color, connect_to, origin, start, end, clockwise);
     }
 
     pub fn build(&mut self) -> Mesh {
@@ -386,7 +397,7 @@ pub struct DrawListCapture<'a> {
     range: Range<usize>,
 }
 
-impl<'a> DrawListCapture<'a> {
+impl DrawListCapture<'_> {
     pub fn map(self, f: impl Fn(&mut Vertex)) {
         self.list.map_range(self.range, f)
     }
@@ -394,14 +405,16 @@ impl<'a> DrawListCapture<'a> {
 
 #[inline]
 pub fn expect_one_contour<I>(mut iter: I) -> (Contour, Range<usize>)
-    where I: Iterator<Item = (Contour, Range<usize>)>
+where
+    I: Iterator<Item = (Contour, Range<usize>)>,
 {
-    iter.next().expect("create_single_contour_path called with path with no contour!")
+    iter.next()
+        .expect("create_single_contour_path called with path with no contour!")
 }
 
 fn create_geometry_builder_for_path<'a>(
     iter: PathEventsIter<'a>,
-    out: &'a mut Vec<Point>
+    out: &'a mut Vec<Point>,
 ) -> PathGeometryBuilder<'a, PathEventsIter<'a>> {
     PathGeometryBuilder::new(iter, out)
 }
@@ -411,7 +424,11 @@ thread_local! {
 }
 
 fn is_path_closed(path: &[Vec2<f32>]) -> bool {
-    if let (Some(first), Some(last)) = (path.first(), path.last()) { first == last } else { false }
+    if let (Some(first), Some(last)) = (path.first(), path.last()) {
+        first == last
+    } else {
+        false
+    }
 }
 
 pub fn fill_path_concave(
@@ -420,7 +437,7 @@ pub fn fill_path_concave(
     earcut: &mut Earcut<f32>,
     fill_style: &FillStyle,
     feathering: f32,
-    mut on_add: impl FnMut(Point)
+    mut on_add: impl FnMut(Point),
 ) {
     let points_count = {
         let n = path.len() as u32;
@@ -451,7 +468,7 @@ pub fn fill_path_concave(
 
         mesh.reserve_prim(
             2 * (points_count as usize), // 2 vertices per point (inner + outer)
-            ((points_count - 2) * 3 + points_count * 6) as usize // Fill triangles + 6 indices per edge for feathering
+            ((points_count - 2) * 3 + points_count * 6) as usize, // Fill triangles + 6 indices per edge for feathering
         );
 
         let mut temp_indices = <Vec<u32>>::new();
@@ -459,7 +476,7 @@ pub fn fill_path_concave(
             path.iter().map(|p| [p.x, p.y]),
             &[],
             &mut temp_indices,
-            false
+            false,
         );
 
         for triangle in temp_indices.chunks_exact(3) {
@@ -516,14 +533,15 @@ pub fn fill_path_concave(
         mesh.reserve_prim(points_count as usize, ((points_count as usize) - 2) * 3);
 
         // Add vertices for the fill
-        mesh.vertices.extend(path.iter().map(|p| Vertex::new(*p, fill, WHITE_UV)));
+        mesh.vertices
+            .extend(path.iter().map(|p| Vertex::new(*p, fill, WHITE_UV)));
 
         // Perform earcut triangulation
         earcut.earcut(
             path.iter().map(|p| [p.x, p.y]),
             &[],
             &mut mesh.indices,
-            false
+            false,
         );
 
         // Adjust indices to account for vertex offset
@@ -540,7 +558,7 @@ pub fn fill_path_convex(
     textured: bool,
     feathering: f32,
     fade_to: Option<Color>,
-    mut on_add: impl FnMut(Point)
+    mut on_add: impl FnMut(Point),
 ) {
     let points_count = {
         let n = path.len() as u32;
@@ -559,13 +577,25 @@ pub fn fill_path_convex(
 
     debug_assert!(cw_signed_area(path) > 0.0, "Path should be clockwise");
 
-    let bounds = if textured { get_path_bounds(path) } else { Default::default() };
+    let bounds = if textured {
+        get_path_bounds(path)
+    } else {
+        Default::default()
+    };
     let b_min = bounds.min();
     let b_max = bounds.max();
 
     let get_uv = |point: &Point| {
-        let uv_x = if b_max.x != b_min.x { (point.x - b_min.x) / (b_max.x - b_min.x) } else { 0.0 };
-        let uv_y = if b_max.y != b_min.y { (point.y - b_min.y) / (b_max.y - b_min.y) } else { 0.0 };
+        let uv_x = if b_max.x != b_min.x {
+            (point.x - b_min.x) / (b_max.x - b_min.x)
+        } else {
+            0.0
+        };
+        let uv_y = if b_max.y != b_min.y {
+            (point.y - b_min.y) / (b_max.y - b_min.y)
+        } else {
+            0.0
+        };
 
         (uv_x, uv_y)
     };

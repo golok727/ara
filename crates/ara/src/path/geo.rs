@@ -2,11 +2,14 @@ use std::ops::Range;
 
 use ara_math::Rect;
 
-use crate::paint::{ CubicBezier, QuadraticBezier };
+use crate::paint::{CubicBezier, QuadraticBezier};
 
-use super::{ Contour, PathEvent, Point };
+use super::{Contour, PathEvent, Point};
 
-pub struct PathGeometryBuilder<'a, PathIter> where PathIter: Iterator<Item = PathEvent> {
+pub struct PathGeometryBuilder<'a, PathIter>
+where
+    PathIter: Iterator<Item = PathEvent>,
+{
     output: &'a mut Vec<Point>,
     offset: usize,
     num_segments: u32,
@@ -25,7 +28,10 @@ pub struct PathGeometryBuilder<'a, PathIter> where PathIter: Iterator<Item = Pat
 //     segments.clamp(Self::MIN_SEGMENTS, Self::MAX_SEGMENTS)
 // }
 
-impl<'a, PathIter> PathGeometryBuilder<'a, PathIter> where PathIter: Iterator<Item = PathEvent> {
+impl<'a, PathIter> PathGeometryBuilder<'a, PathIter>
+where
+    PathIter: Iterator<Item = PathEvent>,
+{
     const MIN_SEGMENTS: u32 = 4;
     const MAX_SEGMENTS: u32 = 64;
     const TOLERANCE: f32 = 7.0; // Lower = more quality
@@ -93,8 +99,18 @@ impl<'a, PathIter> PathGeometryBuilder<'a, PathIter> where PathIter: Iterator<It
         loop {
             match self.path_iter.next() {
                 Some(PathEvent::Begin { .. }) => unreachable!("invalid geometry"),
-                Some(PathEvent::Cubic { from, ctrl1, ctrl2, to }) => {
-                    let bezier = CubicBezier { from, ctrl1, ctrl2, to };
+                Some(PathEvent::Cubic {
+                    from,
+                    ctrl1,
+                    ctrl2,
+                    to,
+                }) => {
+                    let bezier = CubicBezier {
+                        from,
+                        ctrl1,
+                        ctrl2,
+                        to,
+                    };
                     let num_segments = if self.num_segments == 0 {
                         Self::calc_cubic_segments(from, ctrl1, ctrl2, to)
                     } else {
@@ -124,14 +140,18 @@ impl<'a, PathIter> PathGeometryBuilder<'a, PathIter> where PathIter: Iterator<It
                     }
                 }
                 Some(PathEvent::Line { to, .. }) => self.push_point(to),
-                Some(PathEvent::End { close, first, contour, .. }) => {
+                Some(PathEvent::End {
+                    close,
+                    first,
+                    contour,
+                    ..
+                }) => {
                     if close {
                         // Only add closing point if it's different from the last point
                         if let Some(last) = self.output.last() {
                             const EPSILON: f32 = 1e-6;
-                            if
-                                (first.x - last.x).abs() > EPSILON ||
-                                (first.y - last.y).abs() > EPSILON
+                            if (first.x - last.x).abs() > EPSILON
+                                || (first.y - last.y).abs() > EPSILON
                             {
                                 self.push_point(first);
                             }
@@ -147,9 +167,9 @@ impl<'a, PathIter> PathGeometryBuilder<'a, PathIter> where PathIter: Iterator<It
     }
 }
 
-impl<'a, PathIter> Iterator
-    for PathGeometryBuilder<'a, PathIter>
-    where PathIter: Iterator<Item = PathEvent>
+impl<PathIter> Iterator for PathGeometryBuilder<'_, PathIter>
+where
+    PathIter: Iterator<Item = PathEvent>,
 {
     type Item = (Contour, Range<usize>);
 
@@ -194,8 +214,8 @@ pub fn get_path_bounds(path: &[Point]) -> Rect<f32> {
 
 #[cfg(test)]
 mod tests {
-    use crate::path::{ PathBuilder, PathEventsIter, Point };
-    use ara_math::{ vec2, Corners, Rect, Vec2 };
+    use crate::path::{PathBuilder, PathEventsIter, Point};
+    use ara_math::{vec2, Corners, Rect, Vec2};
 
     use super::PathGeometryBuilder;
 
@@ -228,7 +248,12 @@ mod tests {
 
             assert_eq!(
                 points,
-                &[vec2(0.0, 0.0), vec2(0.0, 10.0), vec2(0.0, 20.0), vec2(0.0, 30.0)]
+                &[
+                    vec2(0.0, 0.0),
+                    vec2(0.0, 10.0),
+                    vec2(0.0, 20.0),
+                    vec2(0.0, 30.0)
+                ]
             );
         }
 
@@ -236,7 +261,10 @@ mod tests {
             let start = contours[1].start;
             let end = contours[1].end;
             let points = &output[start..end];
-            assert_eq!(points, &[vec2(100.0, 100.0), vec2(200.0, 300.0), vec2(100.0, 100.0)]);
+            assert_eq!(
+                points,
+                &[vec2(100.0, 100.0), vec2(200.0, 300.0), vec2(100.0, 100.0)]
+            );
         }
     }
 
@@ -256,7 +284,10 @@ mod tests {
 
         path.circle(vec2(0.0, 0.0), 5.0);
         path.rect(&Rect::xywh(10.0, 10.0, 100.0, 100.0));
-        path.round_rect(&Rect::xywh(100.0, 100.0, 100.0, 100.0), &Corners::with_all(20.0));
+        path.round_rect(
+            &Rect::xywh(100.0, 100.0, 100.0, 100.0),
+            &Corners::with_all(20.0),
+        );
 
         let geo_build = <PathGeometryBuilder<PathEventsIter>>::new(path.path_events(), &mut output);
 
@@ -273,10 +304,10 @@ mod tests {
         path.quadratic_to(vec2(5.0, 5.0), vec2(10.0, 0.0));
         path.end(false);
 
-        let mut geo_build = <PathGeometryBuilder<PathEventsIter>>
-            ::new(path.path_events(), &mut output)
-            .with_segments(16)
-            .map(|v| v.1);
+        let mut geo_build =
+            <PathGeometryBuilder<PathEventsIter>>::new(path.path_events(), &mut output)
+                .with_segments(16)
+                .map(|v| v.1);
         let range = geo_build.next().expect("no contours found");
         assert!(geo_build.next().is_none());
 
@@ -314,10 +345,10 @@ mod tests {
         path.cubic_to(vec2(0.0, 4.0), vec2(6.0, 0.0), vec2(6.0, 8.0));
         path.end(false);
 
-        let mut geo_build = <PathGeometryBuilder<PathEventsIter>>
-            ::new(path.path_events(), &mut output)
-            .with_segments(16)
-            .map(|v| v.1);
+        let mut geo_build =
+            <PathGeometryBuilder<PathEventsIter>>::new(path.path_events(), &mut output)
+                .with_segments(16)
+                .map(|v| v.1);
 
         let range = geo_build.next().expect("no contours found");
         let points = &output[range];
@@ -352,10 +383,10 @@ mod tests {
         let mut path = PathBuilder::default();
         path.circle(vec2(0.0, 0.0), 5.0);
 
-        let mut geo_build = <PathGeometryBuilder<PathEventsIter>>
-            ::new(path.path_events(), &mut output)
-            .with_segments(16)
-            .map(|v| v.1);
+        let mut geo_build =
+            <PathGeometryBuilder<PathEventsIter>>::new(path.path_events(), &mut output)
+                .with_segments(16)
+                .map(|v| v.1);
 
         let range = geo_build.next().expect("no contours found");
         let points = &output[range];
@@ -437,12 +468,15 @@ mod tests {
 
         let mut path = PathBuilder::default();
 
-        path.round_rect(&Rect::xywh(10.0, 10.0, 100.0, 100.0), &Corners::with_all(20.0));
+        path.round_rect(
+            &Rect::xywh(10.0, 10.0, 100.0, 100.0),
+            &Corners::with_all(20.0),
+        );
 
-        let mut geo_build = <PathGeometryBuilder<PathEventsIter>>
-            ::new(path.path_events(), &mut output)
-            .with_segments(16)
-            .map(|v| v.1);
+        let mut geo_build =
+            <PathGeometryBuilder<PathEventsIter>>::new(path.path_events(), &mut output)
+                .with_segments(16)
+                .map(|v| v.1);
 
         let range = geo_build.next().expect("no contours found");
         let points = &output[range];
@@ -451,72 +485,252 @@ mod tests {
             &points,
             &[
                 Vec2 { x: 10.0, y: 30.0 },
-                Vec2 { x: 10.103339, y: 27.956335 },
-                Vec2 { x: 10.406632, y: 25.971424 },
-                Vec2 { x: 10.899794, y: 24.055357 },
-                Vec2 { x: 11.572739, y: 22.218216 },
-                Vec2 { x: 12.4153805, y: 20.470089 },
-                Vec2 { x: 13.417635, y: 18.821058 },
-                Vec2 { x: 14.569416, y: 17.281212 },
-                Vec2 { x: 15.860637, y: 15.860637 },
-                Vec2 { x: 17.281212, y: 14.569416 },
-                Vec2 { x: 18.821058, y: 13.417635 },
-                Vec2 { x: 20.470089, y: 12.4153805 },
-                Vec2 { x: 22.218216, y: 11.572739 },
-                Vec2 { x: 24.055357, y: 10.899794 },
-                Vec2 { x: 25.971424, y: 10.406632 },
-                Vec2 { x: 27.956335, y: 10.103339 },
+                Vec2 {
+                    x: 10.103339,
+                    y: 27.956335
+                },
+                Vec2 {
+                    x: 10.406632,
+                    y: 25.971424
+                },
+                Vec2 {
+                    x: 10.899794,
+                    y: 24.055357
+                },
+                Vec2 {
+                    x: 11.572739,
+                    y: 22.218216
+                },
+                Vec2 {
+                    x: 12.4153805,
+                    y: 20.470089
+                },
+                Vec2 {
+                    x: 13.417635,
+                    y: 18.821058
+                },
+                Vec2 {
+                    x: 14.569416,
+                    y: 17.281212
+                },
+                Vec2 {
+                    x: 15.860637,
+                    y: 15.860637
+                },
+                Vec2 {
+                    x: 17.281212,
+                    y: 14.569416
+                },
+                Vec2 {
+                    x: 18.821058,
+                    y: 13.417635
+                },
+                Vec2 {
+                    x: 20.470089,
+                    y: 12.4153805
+                },
+                Vec2 {
+                    x: 22.218216,
+                    y: 11.572739
+                },
+                Vec2 {
+                    x: 24.055357,
+                    y: 10.899794
+                },
+                Vec2 {
+                    x: 25.971424,
+                    y: 10.406632
+                },
+                Vec2 {
+                    x: 27.956335,
+                    y: 10.103339
+                },
                 Vec2 { x: 30.0, y: 10.0 },
                 Vec2 { x: 90.0, y: 10.0 },
-                Vec2 { x: 92.04366, y: 10.103339 },
-                Vec2 { x: 94.02857, y: 10.406632 },
-                Vec2 { x: 95.94464, y: 10.899794 },
-                Vec2 { x: 97.781784, y: 11.572739 },
-                Vec2 { x: 99.52991, y: 12.4153805 },
-                Vec2 { x: 101.17894, y: 13.417635 },
-                Vec2 { x: 102.71878, y: 14.569416 },
-                Vec2 { x: 104.13936, y: 15.860637 },
-                Vec2 { x: 105.43059, y: 17.281212 },
-                Vec2 { x: 106.58237, y: 18.821058 },
-                Vec2 { x: 107.58462, y: 20.470089 },
-                Vec2 { x: 108.42726, y: 22.218216 },
-                Vec2 { x: 109.100204, y: 24.055357 },
-                Vec2 { x: 109.59337, y: 25.971424 },
-                Vec2 { x: 109.89666, y: 27.956335 },
+                Vec2 {
+                    x: 92.04366,
+                    y: 10.103339
+                },
+                Vec2 {
+                    x: 94.02857,
+                    y: 10.406632
+                },
+                Vec2 {
+                    x: 95.94464,
+                    y: 10.899794
+                },
+                Vec2 {
+                    x: 97.781784,
+                    y: 11.572739
+                },
+                Vec2 {
+                    x: 99.52991,
+                    y: 12.4153805
+                },
+                Vec2 {
+                    x: 101.17894,
+                    y: 13.417635
+                },
+                Vec2 {
+                    x: 102.71878,
+                    y: 14.569416
+                },
+                Vec2 {
+                    x: 104.13936,
+                    y: 15.860637
+                },
+                Vec2 {
+                    x: 105.43059,
+                    y: 17.281212
+                },
+                Vec2 {
+                    x: 106.58237,
+                    y: 18.821058
+                },
+                Vec2 {
+                    x: 107.58462,
+                    y: 20.470089
+                },
+                Vec2 {
+                    x: 108.42726,
+                    y: 22.218216
+                },
+                Vec2 {
+                    x: 109.100204,
+                    y: 24.055357
+                },
+                Vec2 {
+                    x: 109.59337,
+                    y: 25.971424
+                },
+                Vec2 {
+                    x: 109.89666,
+                    y: 27.956335
+                },
                 Vec2 { x: 110.0, y: 30.0 },
                 Vec2 { x: 110.0, y: 90.0 },
-                Vec2 { x: 109.89666, y: 92.04366 },
-                Vec2 { x: 109.59337, y: 94.02857 },
-                Vec2 { x: 109.100204, y: 95.94464 },
-                Vec2 { x: 108.42726, y: 97.781784 },
-                Vec2 { x: 107.58462, y: 99.52991 },
-                Vec2 { x: 106.58237, y: 101.17894 },
-                Vec2 { x: 105.43059, y: 102.71878 },
-                Vec2 { x: 104.13936, y: 104.13936 },
-                Vec2 { x: 102.71878, y: 105.43059 },
-                Vec2 { x: 101.17894, y: 106.58237 },
-                Vec2 { x: 99.52991, y: 107.58462 },
-                Vec2 { x: 97.781784, y: 108.42726 },
-                Vec2 { x: 95.94464, y: 109.100204 },
-                Vec2 { x: 94.02857, y: 109.59337 },
-                Vec2 { x: 92.04366, y: 109.89666 },
+                Vec2 {
+                    x: 109.89666,
+                    y: 92.04366
+                },
+                Vec2 {
+                    x: 109.59337,
+                    y: 94.02857
+                },
+                Vec2 {
+                    x: 109.100204,
+                    y: 95.94464
+                },
+                Vec2 {
+                    x: 108.42726,
+                    y: 97.781784
+                },
+                Vec2 {
+                    x: 107.58462,
+                    y: 99.52991
+                },
+                Vec2 {
+                    x: 106.58237,
+                    y: 101.17894
+                },
+                Vec2 {
+                    x: 105.43059,
+                    y: 102.71878
+                },
+                Vec2 {
+                    x: 104.13936,
+                    y: 104.13936
+                },
+                Vec2 {
+                    x: 102.71878,
+                    y: 105.43059
+                },
+                Vec2 {
+                    x: 101.17894,
+                    y: 106.58237
+                },
+                Vec2 {
+                    x: 99.52991,
+                    y: 107.58462
+                },
+                Vec2 {
+                    x: 97.781784,
+                    y: 108.42726
+                },
+                Vec2 {
+                    x: 95.94464,
+                    y: 109.100204
+                },
+                Vec2 {
+                    x: 94.02857,
+                    y: 109.59337
+                },
+                Vec2 {
+                    x: 92.04366,
+                    y: 109.89666
+                },
                 Vec2 { x: 90.0, y: 110.0 },
                 Vec2 { x: 30.0, y: 110.0 },
-                Vec2 { x: 27.956335, y: 109.89666 },
-                Vec2 { x: 25.971424, y: 109.59337 },
-                Vec2 { x: 24.055357, y: 109.100204 },
-                Vec2 { x: 22.218216, y: 108.42726 },
-                Vec2 { x: 20.470089, y: 107.58462 },
-                Vec2 { x: 18.821058, y: 106.58237 },
-                Vec2 { x: 17.281212, y: 105.43059 },
-                Vec2 { x: 15.860637, y: 104.13936 },
-                Vec2 { x: 14.569416, y: 102.71878 },
-                Vec2 { x: 13.417635, y: 101.17894 },
-                Vec2 { x: 12.4153805, y: 99.52991 },
-                Vec2 { x: 11.572739, y: 97.781784 },
-                Vec2 { x: 10.899794, y: 95.94464 },
-                Vec2 { x: 10.406632, y: 94.02857 },
-                Vec2 { x: 10.103339, y: 92.04366 },
+                Vec2 {
+                    x: 27.956335,
+                    y: 109.89666
+                },
+                Vec2 {
+                    x: 25.971424,
+                    y: 109.59337
+                },
+                Vec2 {
+                    x: 24.055357,
+                    y: 109.100204
+                },
+                Vec2 {
+                    x: 22.218216,
+                    y: 108.42726
+                },
+                Vec2 {
+                    x: 20.470089,
+                    y: 107.58462
+                },
+                Vec2 {
+                    x: 18.821058,
+                    y: 106.58237
+                },
+                Vec2 {
+                    x: 17.281212,
+                    y: 105.43059
+                },
+                Vec2 {
+                    x: 15.860637,
+                    y: 104.13936
+                },
+                Vec2 {
+                    x: 14.569416,
+                    y: 102.71878
+                },
+                Vec2 {
+                    x: 13.417635,
+                    y: 101.17894
+                },
+                Vec2 {
+                    x: 12.4153805,
+                    y: 99.52991
+                },
+                Vec2 {
+                    x: 11.572739,
+                    y: 97.781784
+                },
+                Vec2 {
+                    x: 10.899794,
+                    y: 95.94464
+                },
+                Vec2 {
+                    x: 10.406632,
+                    y: 94.02857
+                },
+                Vec2 {
+                    x: 10.103339,
+                    y: 92.04366
+                },
                 Vec2 { x: 10.0, y: 90.0 },
                 Vec2 { x: 10.0, y: 30.0 },
             ]

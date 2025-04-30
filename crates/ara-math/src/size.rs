@@ -1,6 +1,9 @@
-use std::{ fmt::{ Debug, Display }, ops::{ Add, Div, Mul } };
+use std::{
+    fmt::{Debug, Display},
+    ops::{Add, Div, Mul},
+};
 
-use crate::traits::{ Half, IsZero, Zero };
+use crate::traits::{Half, IsZero, Zero};
 
 use super::Vec2;
 
@@ -15,13 +18,19 @@ impl<T> Size<T> {
         Self { width, height }
     }
 }
-impl<T> std::fmt::Display for Size<T> where T: Display + Clone + Debug + Default {
+impl<T> std::fmt::Display for Size<T>
+where
+    T: Display + Clone + Debug + Default,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{{ width: {}, height: {} }}", &self.width, &self.height)
     }
 }
 
-impl<T> Size<T> where T: Half {
+impl<T> Size<T>
+where
+    T: Half,
+{
     pub fn center(&self) -> Vec2<T> {
         Vec2 {
             x: self.width.half(),
@@ -30,7 +39,10 @@ impl<T> Size<T> where T: Half {
     }
 }
 
-impl<T> Half for Size<T> where T: Half {
+impl<T> Half for Size<T>
+where
+    T: Half,
+{
     fn half(&self) -> Self {
         Self {
             width: self.width.half(),
@@ -39,7 +51,10 @@ impl<T> Half for Size<T> where T: Half {
     }
 }
 
-impl<T> From<&Size<T>> for Vec2<T> where T: Clone {
+impl<T> From<&Size<T>> for Vec2<T>
+where
+    T: Clone,
+{
     fn from(value: &Size<T>) -> Self {
         Self {
             x: value.width.clone(),
@@ -57,13 +72,19 @@ impl<T> From<Size<T>> for Vec2<T> {
     }
 }
 
-impl<T> IsZero for Size<T> where T: IsZero {
+impl<T> IsZero for Size<T>
+where
+    T: IsZero,
+{
     fn is_zero(&self) -> bool {
         self.width.is_zero() || self.height.is_zero()
     }
 }
 
-impl<T> Zero for Size<T> where T: Zero {
+impl<T> Zero for Size<T>
+where
+    T: Zero,
+{
     fn zero() -> Self {
         Self {
             width: T::zero(),
@@ -72,7 +93,10 @@ impl<T> Zero for Size<T> where T: Zero {
     }
 }
 
-impl<T> Size<T> where T: IsZero {
+impl<T> Size<T>
+where
+    T: IsZero,
+{
     pub fn empty(&self) -> bool {
         self.width.is_zero() && self.height.is_zero()
     }
@@ -87,7 +111,10 @@ impl<T> Size<T> {
     }
 }
 
-impl<T> Size<T> where T: Clone {
+impl<T> Size<T>
+where
+    T: Clone,
+{
     pub fn map_cloned<U>(&self, f: impl Fn(T) -> U) -> Size<U> {
         Size {
             width: f(self.width.clone()),
@@ -96,7 +123,10 @@ impl<T> Size<T> where T: Clone {
     }
 }
 
-impl<T> Add<Size<T>> for Size<T> where T: Clone + Add<T, Output = T> {
+impl<T> Add<Size<T>> for Size<T>
+where
+    T: Clone + Add<T, Output = T>,
+{
     type Output = Size<T>;
 
     fn add(self, rhs: Size<T>) -> Self::Output {
@@ -107,7 +137,10 @@ impl<T> Add<Size<T>> for Size<T> where T: Clone + Add<T, Output = T> {
     }
 }
 
-impl<T> Add<Vec2<T>> for Size<T> where T: Clone + Add<T, Output = T> {
+impl<T> Add<Vec2<T>> for Size<T>
+where
+    T: Clone + Add<T, Output = T>,
+{
     type Output = Size<T>;
 
     fn add(self, rhs: Vec2<T>) -> Self::Output {
@@ -118,7 +151,10 @@ impl<T> Add<Vec2<T>> for Size<T> where T: Clone + Add<T, Output = T> {
     }
 }
 
-impl<T> Add<Size<T>> for Vec2<T> where T: Clone + Add<T, Output = T> {
+impl<T> Add<Size<T>> for Vec2<T>
+where
+    T: Clone + Add<T, Output = T>,
+{
     type Output = Vec2<T>;
 
     fn add(self, rhs: Size<T>) -> Self::Output {
@@ -130,7 +166,10 @@ impl<T> Add<Size<T>> for Vec2<T> where T: Clone + Add<T, Output = T> {
 }
 
 // add a scalar value to this size
-impl<T> Add<T> for Size<T> where T: Clone + Add<T, Output = T> {
+impl<T> Add<T> for Size<T>
+where
+    T: Clone + Add<T, Output = T>,
+{
     type Output = Self;
 
     fn add(self, rhs: T) -> Self::Output {
@@ -141,7 +180,10 @@ impl<T> Add<T> for Size<T> where T: Clone + Add<T, Output = T> {
     }
 }
 
-impl<T> Add<T> for &Size<T> where T: Clone + Add<T, Output = T> {
+impl<T> Add<T> for &Size<T>
+where
+    T: Clone + Add<T, Output = T>,
+{
     type Output = Size<T>;
 
     fn add(self, rhs: T) -> Self::Output {
@@ -153,7 +195,10 @@ impl<T> Add<T> for &Size<T> where T: Clone + Add<T, Output = T> {
 }
 
 // size / scalar
-impl<T> Div<T> for Size<T> where T: Clone + Div<T, Output = T> {
+impl<T> Div<T> for Size<T>
+where
+    T: Clone + Div<T, Output = T>,
+{
     type Output = Self;
 
     fn div(self, rhs: T) -> Self::Output {
@@ -164,7 +209,10 @@ impl<T> Div<T> for Size<T> where T: Clone + Div<T, Output = T> {
     }
 }
 
-impl<T> Size<T> where T: Mul<T, Output = T> + Clone {
+impl<T> Size<T>
+where
+    T: Mul<T, Output = T> + Clone,
+{
     pub fn scale(&self, scalar: T) -> Self {
         Self {
             width: self.width.clone() * scalar.clone(),
@@ -180,7 +228,10 @@ impl<T> Size<T> where T: Mul<T, Output = T> + Clone {
     }
 }
 
-impl<T> Size<T> where T: PartialOrd + Clone {
+impl<T> Size<T>
+where
+    T: PartialOrd + Clone,
+{
     pub fn max(&self, other: &Self) -> Self {
         Size {
             width: if self.width >= other.width {

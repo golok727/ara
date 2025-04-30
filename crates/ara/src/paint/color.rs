@@ -133,10 +133,10 @@ impl From<Color> for [u8; 4] {
 
 impl From<Color> for u32 {
     fn from(color: Color) -> Self {
-        ((color.r as u32) << 24) |
-            ((color.g as u32) << 16) |
-            ((color.b as u32) << 8) |
-            (color.a as u32)
+        ((color.r as u32) << 24)
+            | ((color.g as u32) << 16)
+            | ((color.b as u32) << 8)
+            | (color.a as u32)
     }
 }
 
@@ -341,18 +341,12 @@ impl TryFrom<&'_ str> for Color {
                         0xff
                     };
 
-                    return Ok(Color {
-                        r,
-                        g,
-                        b,
-                        a,
-                    });
+                    return Ok(Color { r, g, b, a });
                 }
-                _ =>
-                    anyhow::bail!(
-                        "invalid hex color format: '{}' expected #rgb, #rgba, #rrggbb or #rrggbbaa",
-                        hex
-                    ),
+                _ => anyhow::bail!(
+                    "invalid hex color format: '{}' expected #rgb, #rgba, #rrggbb or #rrggbbaa",
+                    hex
+                ),
             }
         }
 
@@ -375,12 +369,7 @@ impl TryFrom<&'_ str> for Color {
                 } else {
                     255
                 };
-                return Ok(Color {
-                    r,
-                    g,
-                    b,
-                    a,
-                });
+                return Ok(Color { r, g, b, a });
             } else {
                 anyhow::bail!("invalid functional color format: '{}'", hex);
             }

@@ -11,7 +11,7 @@ pub mod stroke_tessellate;
 pub mod text;
 pub mod texture;
 
-use crate::{ math::Vec2, text::GlyphImage };
+use crate::{math::Vec2, text::GlyphImage};
 
 pub use atlas::*;
 pub use brush::*;
@@ -41,7 +41,11 @@ impl AtlasKeySource for AtlasKey {
     fn texture_kind(&self) -> TextureKind {
         match self {
             AtlasKey::Glyf(glyph) => {
-                if glyph.is_emoji { TextureKind::Color } else { TextureKind::Mask }
+                if glyph.is_emoji {
+                    TextureKind::Color
+                } else {
+                    TextureKind::Mask
+                }
             }
             AtlasKey::Image(image) => image.texture_kind,
             AtlasKey::WhiteTexture => TextureKind::Color,

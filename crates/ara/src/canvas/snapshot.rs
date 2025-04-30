@@ -1,10 +1,10 @@
-use anyhow::{ bail, Result };
+use anyhow::{bail, Result};
 
-use futures::channel::oneshot::{ self };
 use ara_math::Size;
-use wgpu::{ BufferAsyncError, PollType, TextureUsages };
+use futures::channel::oneshot::{self};
+use wgpu::{BufferAsyncError, PollType, TextureUsages};
 
-use crate::GpuContext;
+use crate::Context;
 
 use super::Canvas;
 
@@ -57,7 +57,7 @@ pub struct CanvasSnapshot {
 impl Canvas {
     pub fn snapshot_sync<Source: CanvasSnapshotSource>(
         &self,
-        source: &Source
+        source: &Source,
     ) -> CanvasSnapshotResult {
         let receiver = source.read_texture_data_async(self)?;
 
@@ -69,7 +69,7 @@ impl Canvas {
     // asynchronously receive a snapshot
     pub async fn snapshot<Source: CanvasSnapshotSource>(
         &self,
-        source: &Source
+        source: &Source,
     ) -> CanvasSnapshotResult {
         let gpu = self.renderer.gpu();
 
@@ -87,13 +87,15 @@ impl Canvas {
 
 // FIXME: Alignment for copy buffer
 pub fn read_texels_async(
-    gpu: &GpuContext,
+    gpu: &Context,
     src: &wgpu::Texture,
-    read: impl FnOnce(Result<Vec<u8>, BufferAsyncError>) + Send + 'static
+    read: impl FnOnce(Result<Vec<u8>, BufferAsyncError>) + Send + 'static,
 ) -> Result<()> {
     let bytes_per_texel = src
         .format()
-        .block_copy_size(None /* Sorry I wont read any depth or stencil textures */)
+        .block_copy_size(
+            None, /* Sorry I wont read any depth or stencil textures */
+        )
         .ok_or(anyhow::anyhow!("Invalid format unable to get texel size"))?;
 
     let buffer_size = (src.width() * src.height() * bytes_per_texel) as u64;
@@ -104,7 +106,7 @@ pub fn read_texels_async(
             size: buffer_size,
             usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
-        })
+        }),
     );
 
     let mut encoder = gpu.create_command_encoder(Some("Command Encoder"));
@@ -128,7 +130,7 @@ pub fn read_texels_async(
             width: src.width(),
             height: src.height(),
             depth_or_array_layers: 1,
-        }
+        },
     );
 
     // Submit the commands

@@ -154,9 +154,8 @@ impl Mat3 {
         // | g h i |
         // det = a(ei - fh) - b(di - fg) + c(dh - eg)
 
-        m[0] * (m[4] * m[8] - m[5] * m[7]) -
-            m[1] * (m[3] * m[8] - m[5] * m[6]) +
-            m[2] * (m[3] * m[7] - m[4] * m[6])
+        m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6])
+            + m[2] * (m[3] * m[7] - m[4] * m[6])
     }
 
     pub fn is_identity(&self) -> bool {
