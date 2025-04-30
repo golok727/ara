@@ -10,7 +10,7 @@ pub fn run(gpu: Context) {
             .add_surface_usage(gpu::TextureUsages::COPY_SRC)
     );
 
-    let mut target = canvas.create_offscreen_target();
+    let mut context = canvas.create_offscreen_target();
 
     let size = canvas.screen().map(|v| *v as f32);
 
@@ -31,9 +31,9 @@ pub fn run(gpu: Context) {
     canvas.fill_text(&text, Color::BLACK);
 
     canvas.clear_color(Color::THAMAR_BLACK);
-    canvas.render(&mut target).expect("error painting");
+    canvas.render(&mut context).expect("error painting");
 
-    let snapshot = canvas.snapshot_sync(&target).expect("Error taking snapshot");
+    let snapshot = canvas.snapshot_sync(&context).expect("Error taking snapshot");
 
     let image_buffer = image::ImageBuffer::<image::Rgba<u8>, _>
         ::from_raw(snapshot.size.width, snapshot.size.height, snapshot.data)
