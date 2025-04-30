@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::gpu::Context;
 use crate::gpu::ContextSpecification;
-use crate::{ BackendRenderingContext, RenderContext, RenderContextConfig };
+use crate::{ BackendRenderingContext, CanvasRenderingContext, CanvasRenderingContextConfig };
 
 use super::CanvasConfig;
 
@@ -108,7 +108,7 @@ impl WebRenderingContext {
 
     pub(crate) async fn create(
         surface_target: impl Into<WebSurfaceTarget>,
-        render_target_config: &RenderContextConfig
+        render_target_config: &CanvasRenderingContextConfig
     ) -> anyhow::Result<Self> {
         let width = render_target_config.width;
         let height = render_target_config.height;
@@ -144,7 +144,7 @@ impl WebRenderingContext {
 }
 
 #[cfg(target_arch = "wasm32")]
-impl RenderContext for WebRenderingContext {
+impl CanvasRenderingContext for WebRenderingContext {
     type PaintOutput = ();
     const LABEL: &'static str = "WebRenderContext";
 
@@ -153,11 +153,11 @@ impl RenderContext for WebRenderingContext {
         Ok(())
     }
 
-    fn configure(&mut self, gpu: &Context, config: &super::RenderContextConfig) {
+    fn configure(&mut self, gpu: &Context, config: &super::CanvasRenderingContextConfig) {
         self.inner.configure(gpu, config);
     }
 
-    fn get_config(&self) -> super::RenderContextConfig {
+    fn get_config(&self) -> super::CanvasRenderingContextConfig {
         self.inner.get_config()
     }
 }

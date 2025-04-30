@@ -1,7 +1,7 @@
 use crate::{ canvas::render_context::create_msaa_view, Context };
 
 use super::{
-    render_context::{ RenderContext, RenderContextConfig },
+    render_context::{ CanvasRenderingContext, CanvasRenderingContextConfig },
     snapshot::CanvasSnapshotSource,
     Canvas,
 };
@@ -15,7 +15,7 @@ pub struct OffscreenRenderingContext {
 }
 
 impl OffscreenRenderingContext {
-    pub(super) fn new(gpu: &Context, config: &RenderContextConfig) -> Self {
+    pub(super) fn new(gpu: &Context, config: &CanvasRenderingContextConfig) -> Self {
         let texture = create_framebuffer_texture(gpu, config);
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -28,11 +28,11 @@ impl OffscreenRenderingContext {
     }
 }
 
-impl RenderContext for OffscreenRenderingContext {
+impl CanvasRenderingContext for OffscreenRenderingContext {
     type PaintOutput = ();
     const LABEL: &'static str = "OffscreenRenderContext";
 
-    fn configure(&mut self, gpu: &Context, config: &RenderContextConfig) {
+    fn configure(&mut self, gpu: &Context, config: &CanvasRenderingContextConfig) {
         debug_assert!(config.width != 0, "Got zero width");
         debug_assert!(config.height != 0, "Got zero height");
 
@@ -43,8 +43,8 @@ impl RenderContext for OffscreenRenderingContext {
         self.view = view;
     }
 
-    fn get_config(&self) -> RenderContextConfig {
-        RenderContextConfig {
+    fn get_config(&self) -> CanvasRenderingContextConfig {
+        CanvasRenderingContextConfig {
             width: self.texture.width(),
             height: self.texture.height(),
             format: self.texture.format(),
@@ -76,7 +76,10 @@ impl CanvasSnapshotSource for OffscreenRenderingContext {
     }
 }
 
-fn create_framebuffer_texture(gpu: &Context, config: &RenderContextConfig) -> wgpu::Texture {
+fn create_framebuffer_texture(
+    gpu: &Context,
+    config: &CanvasRenderingContextConfig
+) -> wgpu::Texture {
     gpu.create_texture(
         &(wgpu::TextureDescriptor {
             label: Some("framebuffer"),

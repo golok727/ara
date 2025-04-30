@@ -1,11 +1,11 @@
 use std::ops::Deref;
 
-use crate::canvas::render_context::RenderContext;
+use crate::canvas::render_context::CanvasRenderingContext;
 use crate::{ Canvas, Context };
 use anyhow::Result;
 use wgpu::SurfaceTexture;
 
-use super::render_context::{ create_msaa_view, RenderContextConfig };
+use super::render_context::{ create_msaa_view, CanvasRenderingContextConfig };
 
 #[derive(Debug, Clone)]
 pub struct GpuSurfaceSpecification {
@@ -32,7 +32,7 @@ impl<'window> BackendRenderingContext<'window> {
     pub fn new(
         gpu: &Context,
         surface: wgpu::Surface<'window>,
-        config: &RenderContextConfig
+        config: &CanvasRenderingContextConfig
     ) -> Result<Self> {
         let capabilities = surface.get_capabilities(&gpu.adapter);
 
@@ -67,7 +67,7 @@ impl PaintedSurface {
     }
 }
 
-impl RenderContext for BackendRenderingContext<'_> {
+impl CanvasRenderingContext for BackendRenderingContext<'_> {
     type PaintOutput = ();
     const LABEL: &'static str = "BackendRenderContext";
 
@@ -88,7 +88,7 @@ impl RenderContext for BackendRenderingContext<'_> {
         Ok(())
     }
 
-    fn configure(&mut self, gpu: &Context, config: &RenderContextConfig) {
+    fn configure(&mut self, gpu: &Context, config: &CanvasRenderingContextConfig) {
         self.config.width = config.width;
         self.config.height = config.height;
         self.config.usage = config.usage | wgpu::TextureUsages::RENDER_ATTACHMENT;
@@ -98,8 +98,8 @@ impl RenderContext for BackendRenderingContext<'_> {
         self.surface.configure(gpu, &self.config);
     }
 
-    fn get_config(&self) -> RenderContextConfig {
-        RenderContextConfig {
+    fn get_config(&self) -> CanvasRenderingContextConfig {
+        CanvasRenderingContextConfig {
             width: self.config.width,
             height: self.config.height,
             format: self.config.format,
