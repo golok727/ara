@@ -1,15 +1,15 @@
-use crate::{ gpu, Context };
+use crate::{gpu, Context};
 use anyhow::Result;
 
 use super::Canvas;
 
-pub trait CanvasRenderingContext {
+pub trait RenderContext {
     type PaintOutput;
     const LABEL: &'static str;
 
     fn paint(&mut self, canvas: &mut Canvas) -> Result<Self::PaintOutput>;
-    fn configure(&mut self, gpu: &Context, config: &CanvasRenderingContextConfig);
-    fn get_config(&self) -> CanvasRenderingContextConfig;
+    fn configure(&mut self, gpu: &Context, config: &RenderContextConfig);
+    fn get_config(&self) -> RenderContextConfig;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,7 +20,7 @@ pub enum MsaaSampleLevel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CanvasRenderingContextConfig {
+pub struct RenderContextConfig {
     pub width: u32,
     pub height: u32,
     pub format: gpu::TextureFormat,
@@ -28,7 +28,7 @@ pub struct CanvasRenderingContextConfig {
     pub(crate) msaa_sample_count: u32,
 }
 
-impl CanvasRenderingContextConfig {
+impl RenderContextConfig {
     pub fn new() -> Self {
         Self::default()
     }
@@ -59,7 +59,7 @@ impl CanvasRenderingContextConfig {
     }
 }
 
-impl Default for CanvasRenderingContextConfig {
+impl Default for RenderContextConfig {
     fn default() -> Self {
         Self {
             width: 1,
@@ -73,7 +73,7 @@ impl Default for CanvasRenderingContextConfig {
 
 pub fn create_msaa_view(
     device: &wgpu::Device,
-    config: &CanvasRenderingContextConfig
+    config: &RenderContextConfig,
 ) -> Option<wgpu::TextureView> {
     (config.msaa_sample_count > 1).then(|| {
         let texture_format = config.format;
@@ -93,7 +93,7 @@ pub fn create_msaa_view(
                     format: texture_format,
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                     view_formats: &[texture_format],
-                })
+                }),
             )
             .create_view(&wgpu::TextureViewDescriptor::default())
     })

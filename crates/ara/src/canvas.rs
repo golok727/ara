@@ -37,7 +37,7 @@ use ahash::HashSet;
 use anyhow::Result;
 use ara_math::{ Corners, Mat3, Vec2 };
 use cosmic_text::{ Attrs, Buffer, Metrics, Shaping };
-use render_context::{ CanvasRenderingContext, CanvasRenderingContextConfig };
+use render_context::{ RenderContext, RenderContextConfig };
 use wgpu::FilterMode;
 
 pub mod backend_context;
@@ -67,21 +67,21 @@ impl Default for CanvasState {
 
 #[derive(Default)]
 pub struct CanvasConfig {
-    context: CanvasRenderingContextConfig,
+    context: RenderContextConfig,
     texture_atlas: Option<Arc<AraAtlas>>,
     text_system: Option<Arc<TextSystem>>,
 }
 
 impl Deref for CanvasConfig {
-    type Target = CanvasRenderingContextConfig;
+    type Target = RenderContextConfig;
 
     fn deref(&self) -> &Self::Target {
         &self.context
     }
 }
 
-impl From<CanvasRenderingContextConfig> for CanvasConfig {
-    fn from(context_config: CanvasRenderingContextConfig) -> Self {
+impl From<RenderContextConfig> for CanvasConfig {
+    fn from(context_config: RenderContextConfig) -> Self {
         Self {
             context: context_config,
             texture_atlas: None,
@@ -116,7 +116,7 @@ impl CanvasConfig {
         self
     }
 
-    pub fn context(&self) -> &CanvasRenderingContextConfig {
+    pub fn context(&self) -> &RenderContextConfig {
         &self.context
     }
 
@@ -134,7 +134,7 @@ impl CanvasConfig {
 pub struct Canvas {
     // TODO pub(crate)
     pub renderer: Renderer2D,
-    pub(crate) context_cfg: CanvasRenderingContextConfig,
+    pub(crate) context_cfg: RenderContextConfig,
 
     list: RenderList,
     texture_atlas: Arc<AraAtlas>,
@@ -183,7 +183,7 @@ impl Canvas {
     }
 
     pub(super) fn build(
-        surface_config: CanvasRenderingContextConfig,
+        surface_config: RenderContextConfig,
         renderer: Renderer2D,
         texture_atlas: Arc<AraAtlas>,
         text_system: Arc<TextSystem>
@@ -453,7 +453,7 @@ impl Canvas {
     }
 
     pub fn render<Cx, Output>(&mut self, context: &mut Cx) -> Result<Output>
-        where Cx: CanvasRenderingContext<PaintOutput = Output>
+        where Cx: RenderContext<PaintOutput = Output>
     {
         if context.get_config() != self.context_cfg {
             log::trace!("{}: surface.configure() ran", Cx::LABEL);

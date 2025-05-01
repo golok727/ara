@@ -44,7 +44,7 @@ pub use canvas::web_context::WebSurfaceTarget;
 pub use canvas::{
     backend_context::BackendRenderingContext,
     offscreen_context::OffscreenRenderingContext,
-    render_context::{ MsaaSampleLevel, CanvasRenderingContext, CanvasRenderingContextConfig },
+    render_context::{ MsaaSampleLevel, RenderContext, RenderContextConfig },
     snapshot::{ CanvasSnapshot, CanvasSnapshotResult, CanvasSnapshotSource },
     Canvas,
     CanvasConfig,
