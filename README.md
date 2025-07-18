@@ -33,7 +33,7 @@ cargo run -p ara-examples <example-name>
 Replace <example-name> with one of the examples located in the examples/ directory.
 
 
-## 🎨 Retained Mode API (Preferred)A
+## 🎨 Retained Mode API (Preferred)
 ```rs
 use ara::{
     gpu::{Context, ContextSpecification, PowerPreference, Backends},
