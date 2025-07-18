@@ -11,11 +11,11 @@ use super::{
 use crate::earcut::Earcut;
 use crate::math::{Rect, Vec2};
 use crate::paint::WHITE_UV;
-use crate::{get_path_bounds, Contour, PathEventsIter, PathGeometryBuilder};
+use crate::{get_path_bounds, Contour, PathEvent, PathEventsIter, PathGeometryBuilder};
 
 use std::ops::{Deref, DerefMut};
 
-use crate::path::{Path, PathBuilder, Point};
+use crate::path::{PathBuilder, Point};
 
 #[derive(Default)]
 struct ScratchPathBuilder {
@@ -311,7 +311,10 @@ impl DrawList {
         );
     }
 
-    pub fn add_path(&mut self, path: &Path, brush: &PathBrush, transform: Option<Mat3>) {
+    pub fn add_path<Events>(&mut self, path: Events, brush: &PathBrush, transform: Option<Mat3>)
+    where
+        Events: IntoIterator<Item = PathEvent>,
+    {
         self.path.clear();
         self.path.extend(path);
 

@@ -89,3 +89,12 @@ where
             && self.bottom_right.is_zero()
     }
 }
+
+impl<T> From<T> for Corners<T>
+where
+    T: Clone + Debug + Default,
+{
+    fn from(v: T) -> Self {
+        Self::with_all(v)
+    }
+}

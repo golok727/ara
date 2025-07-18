@@ -197,9 +197,20 @@ impl Brush {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FillStyle {
     pub color: Color,
+}
+
+impl<T> From<T> for FillStyle
+where
+    T: Into<Color>,
+{
+    fn from(value: T) -> Self {
+        Self {
+            color: value.into(),
+        }
+    }
 }
 
 impl Default for FillStyle {
@@ -231,7 +242,7 @@ pub enum LineCap {
     Butt,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct StrokeStyle {
     pub color: Color,
     pub line_width: u32,
@@ -317,7 +328,7 @@ impl StrokeStyle {
 
 #[derive(Debug, Clone)]
 pub struct PathBrush {
-    default: Brush,
+    pub(crate) default: Brush,
     overrides: ahash::HashMap<Contour, Brush>,
 }
 

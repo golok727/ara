@@ -27,6 +27,7 @@ impl Vertex {
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
+    // will be removed with the release of new engine
     pub texture: TextureId,
 }
 
@@ -34,6 +35,11 @@ impl Mesh {
     pub fn clear(&mut self) {
         self.indices.clear();
         self.vertices = Default::default();
+    }
+
+    pub fn clear_preserve(&mut self) {
+        self.indices.clear();
+        self.vertices.clear();
     }
 
     #[inline]
@@ -118,7 +124,7 @@ impl Mesh {
 
         let angle = to_angle - from_angle;
         let num_triangles = (angle / ROUND_MIN_ANGLE).abs().floor().max(1.0) as usize;
-        let seg_angle = angle / num_triangles as f32;
+        let seg_angle = angle / (num_triangles as f32);
 
         self.reserve_prim(2 + num_triangles, num_triangles * 3);
 
@@ -131,7 +137,7 @@ impl Mesh {
         let mut prev_vertex_index = start_vertex_index;
 
         for i in 0..num_triangles - 1 {
-            let rotation = (i as f32 + 1.0) * seg_angle;
+            let rotation = ((i as f32) + 1.0) * seg_angle;
             let c = rotation.cos();
             let s = rotation.sin();
             let end_point = Vec2::new(c * from.x - s * from.y, s * from.x + c * from.y) + origin;

@@ -33,14 +33,14 @@ pub type AraAtlas = TextureAtlas<AtlasKey>;
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum AtlasKey {
     Image(AtlasImage),
-    Glyf(GlyphImage),
+    Glyph(GlyphImage),
     WhiteTexture,
 }
 
 impl AtlasKeySource for AtlasKey {
     fn texture_kind(&self) -> TextureKind {
         match self {
-            AtlasKey::Glyf(glyph) => {
+            AtlasKey::Glyph(glyph) => {
                 if glyph.is_emoji {
                     TextureKind::Color
                 } else {
@@ -54,8 +54,8 @@ impl AtlasKeySource for AtlasKey {
 }
 
 impl From<GlyphImage> for AtlasKey {
-    fn from(atlas_glyf: GlyphImage) -> Self {
-        Self::Glyf(atlas_glyf)
+    fn from(atlas_glyph: GlyphImage) -> Self {
+        Self::Glyph(atlas_glyph)
     }
 }
 

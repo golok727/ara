@@ -1,4 +1,4 @@
-use cosmic_text::{FontSystem as CosmisTextFontSystem, SwashCache};
+use cosmic_text::{FontSystem as CosmicTextFontSystem, SwashCache};
 use parking_lot::RwLock;
 
 #[derive(Default)]
@@ -7,7 +7,7 @@ pub struct TextSystem(RwLock<TextSystemState>);
 impl TextSystem {}
 
 pub struct TextSystemState {
-    pub font_system: CosmisTextFontSystem,
+    pub font_system: CosmicTextFontSystem,
     pub swash_cache: SwashCache,
 }
 
@@ -25,7 +25,7 @@ impl TextSystem {
 
 impl Default for TextSystemState {
     fn default() -> Self {
-        let font_system = CosmisTextFontSystem::new();
+        let font_system = CosmicTextFontSystem::new();
         Self {
             font_system,
             swash_cache: SwashCache::new(),

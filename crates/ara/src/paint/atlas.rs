@@ -7,6 +7,8 @@ use std::borrow::Cow;
 
 #[derive(Debug)]
 pub struct TextureAtlas<Key: AtlasKeySource>(Mutex<AtlasStorage<Key>>);
+unsafe impl<T: AtlasKeySource> Send for TextureAtlas<T> {}
+unsafe impl<T: AtlasKeySource> Sync for TextureAtlas<T> {}
 
 /*
 

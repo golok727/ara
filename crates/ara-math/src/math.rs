@@ -12,6 +12,8 @@ pub use size::*;
 pub use traits::*;
 pub use vec2::*;
 
+pub type Point = Vec2<f32>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -67,7 +69,7 @@ mod tests {
             let width: u32 = 1875;
             let height: u32 = 1023;
 
-            let aspect: f32 = width as f32 / height as f32;
+            let aspect: f32 = (width as f32) / (height as f32);
             let proj = Mat3::ortho(1.0, aspect, -1.0, -aspect);
 
             let positions = [vec2(-0.5, -0.5), vec2(0.0, 0.5), vec2(0.5, -0.5)];

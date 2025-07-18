@@ -1,21 +1,21 @@
-use crate::{ canvas::render_context::create_msaa_view, Context };
+use crate::{canvas::render_context::create_msaa_view, Context};
 
 use super::{
-    render_context::{ RenderContext, RenderContextConfig },
+    render_context::{CanvasRenderTarget, CanvasRenderTargetDescriptor},
     snapshot::CanvasSnapshotSource,
     Canvas,
 };
 use anyhow::Result;
 
-pub struct OffscreenRenderingContext {
+pub struct OffscreenRenderTarget {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
     msaa_sample_count: u32,
     msaa_view: Option<wgpu::TextureView>,
 }
 
-impl OffscreenRenderingContext {
-    pub(super) fn new(gpu: &Context, config: &RenderContextConfig) -> Self {
+impl OffscreenRenderTarget {
+    pub(super) fn new(gpu: &Context, config: &CanvasRenderTargetDescriptor) -> Self {
         let texture = create_framebuffer_texture(gpu, config);
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -28,11 +28,11 @@ impl OffscreenRenderingContext {
     }
 }
 
-impl RenderContext for OffscreenRenderingContext {
+impl CanvasRenderTarget for OffscreenRenderTarget {
     type PaintOutput = ();
     const LABEL: &'static str = "OffscreenRenderContext";
 
-    fn configure(&mut self, gpu: &Context, config: &RenderContextConfig) {
+    fn configure(&mut self, gpu: &Context, config: &CanvasRenderTargetDescriptor) {
         debug_assert!(config.width != 0, "Got zero width");
         debug_assert!(config.height != 0, "Got zero height");
 
@@ -43,8 +43,8 @@ impl RenderContext for OffscreenRenderingContext {
         self.view = view;
     }
 
-    fn get_config(&self) -> RenderContextConfig {
-        RenderContextConfig {
+    fn get_config(&self) -> CanvasRenderTargetDescriptor {
+        CanvasRenderTargetDescriptor {
             width: self.texture.width(),
             height: self.texture.height(),
             format: self.texture.format(),
@@ -57,7 +57,9 @@ impl RenderContext for OffscreenRenderingContext {
         let (view, resolve_target) = (self.msaa_sample_count > 1)
             .then_some(self.msaa_view.as_ref())
             .flatten()
-            .map_or((&self.view, None), |texture_view| { (texture_view, Some(&self.view)) });
+            .map_or((&self.view, None), |texture_view| {
+                (texture_view, Some(&self.view))
+            });
 
         canvas.render_to_texture(view, resolve_target);
         Ok(())
@@ -65,18 +67,21 @@ impl RenderContext for OffscreenRenderingContext {
 }
 
 impl Canvas {
-    pub fn create_offscreen_context(&self) -> OffscreenRenderingContext {
-        OffscreenRenderingContext::new(self.renderer.gpu(), &self.context_cfg)
+    pub fn create_offscreen_context(&self) -> OffscreenRenderTarget {
+        OffscreenRenderTarget::new(self.renderer.gpu(), &self.context_cfg)
     }
 }
 
-impl CanvasSnapshotSource for OffscreenRenderingContext {
+impl CanvasSnapshotSource for OffscreenRenderTarget {
     fn get_source_texture(&self) -> wgpu::Texture {
         self.texture.clone()
     }
 }
 
-fn create_framebuffer_texture(gpu: &Context, config: &RenderContextConfig) -> wgpu::Texture {
+fn create_framebuffer_texture(
+    gpu: &Context,
+    config: &CanvasRenderTargetDescriptor,
+) -> wgpu::Texture {
     gpu.create_texture(
         &(wgpu::TextureDescriptor {
             label: Some("framebuffer"),
@@ -91,6 +96,6 @@ fn create_framebuffer_texture(gpu: &Context, config: &RenderContextConfig) -> wg
             format: config.format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | config.usage,
             view_formats: &[config.format],
-        })
+        }),
     )
 }

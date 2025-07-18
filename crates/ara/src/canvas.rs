@@ -1,52 +1,29 @@
-use std::{ borrow::Cow, ops::Deref, sync::Arc };
+use std::{borrow::Cow, ops::Deref, sync::Arc};
 
 use crate::{
-    circle,
-    gpu,
+    circle, gpu,
     paint::{
-        AraAtlas,
-        AraAtlasTextureInfoMap,
-        AtlasKey,
-        Brush,
-        GpuTextureView,
-        GraphicsInstruction,
-        GraphicsInstructionBatcher,
-        PathBrush,
-        Primitive,
-        TextureKind,
+        AraAtlas, AraAtlasTextureInfoMap, AtlasKey, Brush, GpuTextureView, GraphicsInstruction,
+        GraphicsInstructionBatcher, PathBrush, Primitive, TextureKind,
     },
     path::Path,
     quad,
-    renderer::{ create_ara_renderer, Renderable },
-    AtlasTextureInfo,
-    Color,
-    DrawList,
-    GlyphImage,
-    IsZero,
-    MsaaSampleLevel,
-    Rect,
-    Renderer2D,
-    Renderer2DSpecs,
-    Size,
-    Text,
-    TextSystem,
-    TextureId,
-    TextureOptions,
+    renderer::{create_ara_renderer, Renderable},
+    AtlasTextureInfo, Color, DrawList, GlyphImage, IsZero, MsaaSampleLevel, Rect, Renderer2D,
+    Renderer2DSpecs, Size, Text, TextSystem, TextureId, TextureOptions,
 };
 use ahash::HashSet;
 use anyhow::Result;
-use ara_math::{ Corners, Mat3, Vec2 };
-use cosmic_text::{ Attrs, Buffer, Metrics, Shaping };
-use render_context::{ RenderContext, RenderContextConfig };
+use ara_math::{Corners, Mat3, Vec2};
+use cosmic_text::{Attrs, Buffer, Metrics, Shaping};
+use render_context::{CanvasRenderTarget, CanvasRenderTargetDescriptor};
 use wgpu::FilterMode;
 
-pub mod backend_context;
-pub mod offscreen_context;
+pub mod backend_target;
+pub mod offscreen_target;
 pub mod render_context;
 pub mod render_list;
 pub mod snapshot;
-#[cfg(target_arch = "wasm32")]
-pub mod web_context;
 
 use render_list::RenderList;
 
@@ -67,21 +44,21 @@ impl Default for CanvasState {
 
 #[derive(Default)]
 pub struct CanvasConfig {
-    context: RenderContextConfig,
+    context: CanvasRenderTargetDescriptor,
     texture_atlas: Option<Arc<AraAtlas>>,
     text_system: Option<Arc<TextSystem>>,
 }
 
 impl Deref for CanvasConfig {
-    type Target = RenderContextConfig;
+    type Target = CanvasRenderTargetDescriptor;
 
     fn deref(&self) -> &Self::Target {
         &self.context
     }
 }
 
-impl From<RenderContextConfig> for CanvasConfig {
-    fn from(context_config: RenderContextConfig) -> Self {
+impl From<CanvasRenderTargetDescriptor> for CanvasConfig {
+    fn from(context_config: CanvasRenderTargetDescriptor) -> Self {
         Self {
             context: context_config,
             texture_atlas: None,
@@ -116,7 +93,7 @@ impl CanvasConfig {
         self
     }
 
-    pub fn context(&self) -> &RenderContextConfig {
+    pub fn context(&self) -> &CanvasRenderTargetDescriptor {
         &self.context
     }
 
@@ -134,7 +111,7 @@ impl CanvasConfig {
 pub struct Canvas {
     // TODO pub(crate)
     pub renderer: Renderer2D,
-    pub(crate) context_cfg: RenderContextConfig,
+    pub(crate) context_cfg: CanvasRenderTargetDescriptor,
 
     list: RenderList,
     texture_atlas: Arc<AraAtlas>,
@@ -154,16 +131,18 @@ pub struct Canvas {
 
 impl Canvas {
     // TODO make it configurable
-    const AA_SIZE: f32 = 3.0;
+    const AA_SIZE: f32 = 2.0;
 
     pub fn new(gpu: gpu::Context, config: CanvasConfig) -> Self {
         let surface_config = config.context;
 
-        let texture_atlas = config.texture_atlas.unwrap_or_else(||
-            Arc::new(AraAtlas::new(gpu.clone()))
-        );
+        let texture_atlas = config
+            .texture_atlas
+            .unwrap_or_else(|| Arc::new(AraAtlas::new(gpu.clone())));
 
-        let text_system = config.text_system.unwrap_or_else(|| Arc::new(TextSystem::default()));
+        let text_system = config
+            .text_system
+            .unwrap_or_else(|| Arc::new(TextSystem::default()));
 
         let renderer = create_ara_renderer(
             gpu,
@@ -172,7 +151,7 @@ impl Canvas {
                 width: surface_config.width,
                 height: surface_config.height,
                 msaa_sample_count: surface_config.msaa_sample_count,
-            })
+            }),
         );
 
         Self::build(surface_config, renderer, texture_atlas, text_system)
@@ -183,10 +162,10 @@ impl Canvas {
     }
 
     pub(super) fn build(
-        surface_config: RenderContextConfig,
+        surface_config: CanvasRenderTargetDescriptor,
         renderer: Renderer2D,
         texture_atlas: Arc<AraAtlas>,
-        text_system: Arc<TextSystem>
+        text_system: Arc<TextSystem>,
     ) -> Self {
         let white_texture_uv = texture_atlas
             .get_texture_info(&AtlasKey::WhiteTexture)
@@ -272,6 +251,11 @@ impl Canvas {
         self.current_state.clip_rect = self.current_state.clip_rect.intersect(rect);
     }
 
+    pub fn reset_clip(&mut self) {
+        self.stage_changes();
+        self.current_state.clip_rect = Rect::EVERYTHING;
+    }
+
     pub fn translate(&mut self, dx: f32, dy: f32) {
         self.stage_changes();
         self.current_state.transform.translate(dx, dy);
@@ -299,7 +283,8 @@ impl Canvas {
 
     #[inline]
     pub fn draw_primitive(&mut self, prim: impl Into<Primitive>, brush: Brush) {
-        self.list.add(GraphicsInstruction::brush(prim, brush.clone()));
+        self.list
+            .add(GraphicsInstruction::brush(prim, brush.clone()));
     }
 
     pub fn draw_path(&mut self, path: impl Into<Path>, brush: impl Into<PathBrush>) {
@@ -309,7 +294,7 @@ impl Canvas {
                 brush: brush.into(),
             },
             // FIXME: This is a workaround
-            Brush::filled(Color::WHITE)
+            Brush::filled(Color::WHITE),
         );
     }
 
@@ -322,21 +307,22 @@ impl Canvas {
     }
 
     pub fn draw_image(&mut self, rect: &Rect<f32>, texture_id: &TextureId) {
-        self.list.add(GraphicsInstruction::textured(quad().rect(rect.clone()), texture_id.clone()));
+        self.list.add(GraphicsInstruction::textured(
+            quad().rect(rect.clone()),
+            texture_id.clone(),
+        ));
     }
 
     pub fn draw_image_rounded(
         &mut self,
         rect: &Rect<f32>,
         corners: &Corners<f32>,
-        texture_id: &TextureId
+        texture_id: &TextureId,
     ) {
-        self.list.add(
-            GraphicsInstruction::textured(
-                quad().rect(rect.clone()).corners(corners.clone()),
-                texture_id.clone()
-            )
-        );
+        self.list.add(GraphicsInstruction::textured(
+            quad().rect(rect.clone()).corners(corners.clone()),
+            texture_id.clone(),
+        ));
     }
 
     pub fn draw_circle(&mut self, cx: f32, cy: f32, radius: f32, brush: Brush) {
@@ -352,7 +338,7 @@ impl Canvas {
             buffer.set_size(
                 &mut state.font_system,
                 Some(self.context_cfg.width as f32),
-                Some(self.context_cfg.height as f32)
+                Some(self.context_cfg.height as f32),
             );
 
             let attrs = Attrs::new();
@@ -371,10 +357,9 @@ impl Canvas {
                 for glyph in run.glyphs.iter() {
                     let scale = 1.0;
                     let physical_glyph = glyph.physical((text.pos.x, text.pos.y), scale);
-                    let image = state.swash_cache.get_image(
-                        &mut state.font_system,
-                        physical_glyph.cache_key
-                    );
+                    let image = state
+                        .swash_cache
+                        .get_image(&mut state.font_system, physical_glyph.cache_key);
 
                     if let Some(image) = image {
                         let kind = match image.content {
@@ -389,26 +374,22 @@ impl Canvas {
                             is_emoji: kind.is_color(),
                         });
 
-                        let size = Size::new(
-                            image.placement.width as i32,
-                            image.placement.height as i32
-                        );
+                        let size =
+                            Size::new(image.placement.width as i32, image.placement.height as i32);
 
                         if size.is_zero() {
                             continue;
                         }
 
-                        self.texture_atlas.get_or_insert(&glyph_key, || (
-                            size,
-                            Cow::Borrowed(&image.data),
-                        ));
+                        self.texture_atlas
+                            .get_or_insert(&glyph_key, || (size, Cow::Borrowed(&image.data)));
 
                         self.renderer.set_texture_from_atlas(
                             &self.texture_atlas,
                             &glyph_key,
                             &TextureOptions::default()
                                 .min_filter(FilterMode::Nearest)
-                                .mag_filter(FilterMode::Nearest)
+                                .mag_filter(FilterMode::Nearest),
                         );
 
                         let x = physical_glyph.x + image.placement.left;
@@ -422,18 +403,14 @@ impl Canvas {
                             fill_color
                         };
 
-                        self.list.add(
-                            GraphicsInstruction::textured_brush(
-                                quad().rect(
-                                    Rect::from_origin_size(
-                                        (x as f32, y as f32).into(),
-                                        size.map(|v| *v as f32)
-                                    )
-                                ),
-                                TextureId::AtlasKey(glyph_key),
-                                Brush::filled(color)
-                            )
-                        );
+                        self.list.add(GraphicsInstruction::textured_brush(
+                            quad().rect(Rect::from_origin_size(
+                                (x as f32, y as f32).into(),
+                                size.map(|v| v as f32),
+                            )),
+                            TextureId::AtlasKey(glyph_key),
+                            Brush::filled(color),
+                        ));
                     }
                 }
                 // end glyphs
@@ -453,7 +430,8 @@ impl Canvas {
     }
 
     pub fn render<Cx, Output>(&mut self, context: &mut Cx) -> Result<Output>
-        where Cx: RenderContext<PaintOutput = Output>
+    where
+        Cx: CanvasRenderTarget<PaintOutput = Output>,
     {
         if context.get_config() != self.context_cfg {
             log::trace!("{}: surface.configure() ran", Cx::LABEL);
@@ -466,7 +444,7 @@ impl Canvas {
     pub(crate) fn render_to_texture(
         &mut self,
         view: &GpuTextureView,
-        resolve_target: Option<&wgpu::TextureView>
+        resolve_target: Option<&wgpu::TextureView>,
     ) {
         self.prepare_for_render();
 
@@ -476,27 +454,28 @@ impl Canvas {
             let mut pass = encoder.begin_render_pass(
                 &(wgpu::RenderPassDescriptor {
                     label: Some("RenderTarget Pass"),
-                    color_attachments: &[
-                        Some(wgpu::RenderPassColorAttachment {
-                            view,
-                            resolve_target,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(self.clear_color.into()),
-                                store: wgpu::StoreOp::Store,
-                            },
-                        }),
-                    ],
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view,
+                        resolve_target,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(self.clear_color.into()),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
                     depth_stencil_attachment: None,
                     occlusion_query_set: None,
                     timestamp_writes: None,
-                })
+                }),
             );
 
             self.renderer.prepare(&self.cached_renderables);
             self.renderer.render(&mut pass, &self.cached_renderables);
         }
 
-        self.renderer.gpu().queue.submit(std::iter::once(encoder.finish()));
+        self.renderer
+            .gpu()
+            .queue
+            .submit(std::iter::once(encoder.finish()));
     }
 
     fn get_required_atlas_keys(&self) -> HashSet<AtlasKey> {
@@ -535,8 +514,10 @@ impl Canvas {
 
         let get_renderer_texture = |texture_id: &TextureId| {
             match texture_id {
-                TextureId::AtlasKey(key) =>
-                    self.atlas_info_map.get(key).map(|info| TextureId::Atlas(info.tile.texture)),
+                TextureId::AtlasKey(key) => self
+                    .atlas_info_map
+                    .get(key)
+                    .map(|info| TextureId::Atlas(info.tile.texture)),
                 _ => None, // the batcher will use the instruction.texture
             }
         };
@@ -546,20 +527,13 @@ impl Canvas {
 
         // TODO batch ops in stages too
         for staged in &self.list {
-            let batcher = GraphicsInstructionBatcher::new(
-                staged.instructions,
-                get_renderer_texture
-            );
+            let batcher =
+                GraphicsInstructionBatcher::new(staged.instructions, get_renderer_texture);
 
             for batch in batcher {
                 let render_texture = batch.renderer_texture.clone();
-                if
-                    let Some(renderable) = self.build_renderable(
-                        &mut drawlist,
-                        batch,
-                        render_texture,
-                        staged.state
-                    )
+                if let Some(renderable) =
+                    self.build_renderable(&mut drawlist, batch, render_texture, staged.state)
                 {
                     self.cached_renderables.push(renderable);
                 }
@@ -572,7 +546,7 @@ impl Canvas {
         drawlist: &mut DrawList,
         instructions: impl Iterator<Item = &'a GraphicsInstruction>,
         render_texture: TextureId,
-        canvas_state: &CanvasState
+        canvas_state: &CanvasState,
     ) -> Option<Renderable> {
         for instruction in instructions {
             let primitive = &instruction.primitive;
@@ -596,7 +570,7 @@ impl Canvas {
                     primitive,
                     brush,
                     !is_white_texture,
-                    Some(canvas_state.transform)
+                    Some(canvas_state.transform),
                 )
             };
 

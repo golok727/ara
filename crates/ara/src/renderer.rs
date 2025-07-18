@@ -32,8 +32,8 @@ pub struct GlobalUniformsBuffer {
 }
 
 impl GlobalUniformsBuffer {
-    pub fn new(gpu: &Context, data: GlobalUniformData) -> Self {
-        let gpu_buffer = gpu.device.create_buffer_init(
+    pub fn new(device: &wgpu::Device, data: GlobalUniformData) -> Self {
+        let gpu_buffer = device.create_buffer_init(
             &(wgpu::util::BufferInitDescriptor {
                 label: Some("Global uniform buffer"),
                 contents: bytemuck::cast_slice(&[data]),
@@ -43,7 +43,7 @@ impl GlobalUniformsBuffer {
             }),
         );
 
-        let layout = gpu.device.create_bind_group_layout(
+        let layout = device.create_bind_group_layout(
             &(wgpu::BindGroupLayoutDescriptor {
                 label: Some("Global uniform bind group layout"),
                 entries: &[wgpu::BindGroupLayoutEntry {
@@ -59,7 +59,7 @@ impl GlobalUniformsBuffer {
             }),
         );
 
-        let bind_group = gpu.device.create_bind_group(
+        let bind_group = device.create_bind_group(
             &(wgpu::BindGroupDescriptor {
                 label: Some("Global uniform bind group"),
                 layout: &layout,
@@ -148,7 +148,7 @@ impl Renderer2D {
         let global_uniforms =
             GlobalUniformsBuffer::new(&gpu, GlobalUniformData { proj: proj.into() });
 
-        let texture_bindgroup_layout = gpu.device.create_bind_group_layout(
+        let texture_bindgroup_layout = gpu.create_bind_group_layout(
             &(wgpu::BindGroupLayoutDescriptor {
                 label: Some("ara wgpu::Renderer texture bindgroup layout"),
                 entries: &[
@@ -181,7 +181,7 @@ impl Renderer2D {
             ],
         );
 
-        let vertex_buffer = BatchBuffer {
+        let vertex_buffer: BatchBuffer = BatchBuffer {
             buffer: gpu.create_vertex_buffer(INITIAL_VERTEX_BUFFER_SIZE),
             slices: Vec::with_capacity(64),
             capacity: INITIAL_VERTEX_BUFFER_SIZE,
@@ -371,7 +371,7 @@ impl Renderer2D {
                     0,
                     NonZeroU64::new(required_vertex_buffer_size).unwrap(),
                 )
-                .expect("Failed to create stating buffer for vertex");
+                .expect("Failed to create staging buffer for vertex");
 
             let mut vertex_offset = 0;
 
@@ -405,7 +405,7 @@ impl Renderer2D {
                     0,
                     NonZeroU64::new(required_index_buffer_size).unwrap(),
                 )
-                .expect("Failed to create staging buffer for");
+                .expect("Failed to create staging buffer for index buffer");
 
             let mut index_offset = 0;
             for renderable in renderables {
@@ -527,7 +527,7 @@ impl GeometryPipes {
 
         let layout = gpu.device.create_pipeline_layout(
             &(wgpu::PipelineLayoutDescriptor {
-                label: Some("Scenepipe layout"),
+                label: Some("Scene pipe layout"),
                 bind_group_layouts,
                 push_constant_ranges: &[],
             }),
@@ -548,7 +548,7 @@ impl GeometryPipes {
             alpha: wgpu::BlendComponent::OVER,
         });
 
-        let polychrome = gpu.device.create_render_pipeline(
+        let polychrome = gpu.create_render_pipeline(
             &(wgpu::RenderPipelineDescriptor {
                 label: Some("Scene pipeline Poly"),
                 layout: Some(&layout),
@@ -644,8 +644,8 @@ struct ScissorRect {
 
 impl ScissorRect {
     fn new(clip_rect: &Rect<f32>, screen_size: &Size<u32>) -> Self {
-        let clip_min = clip_rect.min().round().map_cloned(|v| v as u32);
-        let clip_max = clip_rect.max().round().map_cloned(|v| v as u32);
+        let clip_min = clip_rect.min().round().map(|v| v as u32);
+        let clip_max = clip_rect.max().round().map(|v| v as u32);
 
         let clip_min_x = clip_min.x.clamp(0, screen_size.width);
         let clip_min_y = clip_min.y.clamp(0, screen_size.height);

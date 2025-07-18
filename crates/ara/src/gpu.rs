@@ -6,9 +6,6 @@ pub use error::*;
 
 pub use wgpu::*;
 
-#[cfg(target_arch = "wasm32")]
-pub mod web;
-
 #[derive(Debug, Clone)]
 pub struct Context {
     pub device: wgpu::Device,
@@ -35,39 +32,74 @@ pub async fn create_instance_with_wgpu_detection(
     wgpu::util::new_instance_with_webgpu_detection(desc).await
 }
 
-#[derive(Debug, Default)]
-pub struct ContextSpecification<'a, 'window> {
+#[derive(Default)]
+pub struct ContextSpecification<'window> {
     pub power_preference: wgpu::PowerPreference,
-    pub compatible_surface: Option<&'a wgpu::Surface<'window>>,
     pub backends: wgpu::Backends,
+    pub compatible_surface_target: Option<wgpu::SurfaceTarget<'window>>,
+}
+impl<'window> ContextSpecification<'window> {
+    fn get_compatible_surface(
+        &mut self,
+        instance: &wgpu::Instance,
+    ) -> Option<wgpu::Surface<'window>> {
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(target) = self.compatible_surface_target.take() {
+                let surface = instance.create_surface(target).ok()?;
+                Some(surface)
+            } else {
+                None
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = instance;
+            None
+        }
+    }
 }
 
 impl Context {
-    // On wasm we need to have a canvas to create an adapter if using webgl so we decided to only allow to create a context when a canvas is provided use `new_web`
-    // #[cfg(not(target_arch = "wasm32"))]
-    pub async fn new<'a, 'window>(
-        options: &ContextSpecification<'a, 'window>,
-    ) -> Result<Self, error::GpuContextCreateError> {
-        let instance = Instance::new(
+    pub async fn new<'window>(mut options: ContextSpecification<'window>) -> anyhow::Result<Self> {
+        let instance = wgpu::util::new_instance_with_webgpu_detection(
             &(wgpu::InstanceDescriptor {
                 backends: options.backends,
                 ..Default::default()
             }),
-        );
+        )
+        .await;
 
+        Self::create(instance, &mut options).await
+    }
+
+    pub async fn new_noop() -> anyhow::Result<Self> {
+        Self::new(ContextSpecification {
+            backends: Backends::NOOP,
+            ..Default::default()
+        })
+        .await
+    }
+
+    pub async fn new_with_instance<'window>(
+        instance: wgpu::Instance,
+        options: &mut ContextSpecification<'window>,
+    ) -> anyhow::Result<Self> {
         Self::create(instance, options).await
     }
 
-    pub(crate) async fn create<'a, 'window>(
+    pub(crate) async fn create<'window>(
         instance: wgpu::Instance,
-        specs: &ContextSpecification<'a, 'window>,
-    ) -> Result<Self, error::GpuContextCreateError> {
+        specs: &mut ContextSpecification<'window>,
+    ) -> anyhow::Result<Self> {
+        let compatible_surface = specs.get_compatible_surface(&instance);
+
         let adapter = instance
             .request_adapter(
                 &(wgpu::RequestAdapterOptions {
                     power_preference: specs.power_preference,
                     force_fallback_adapter: false,
-                    compatible_surface: specs.compatible_surface,
+                    compatible_surface: compatible_surface.as_ref(),
                 }),
             )
             .await

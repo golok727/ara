@@ -258,20 +258,8 @@ macro_rules! impl_vec2_float {
 impl_vec2_float!(f32);
 impl_vec2_float!(f64);
 
-impl<T> Vec2<T> {
-    pub fn map<U>(&self, f: impl Fn(&T) -> U) -> Vec2<U> {
-        Vec2 {
-            x: f(&self.x),
-            y: f(&self.y),
-        }
-    }
-}
-
-impl<T> Vec2<T>
-where
-    T: Clone,
-{
-    pub fn map_cloned<U>(&self, f: impl Fn(T) -> U) -> Vec2<U> {
+impl<T: Clone> Vec2<T> {
+    pub fn map<U>(&self, f: impl Fn(T) -> U) -> Vec2<U> {
         Vec2 {
             x: f(self.x.clone()),
             y: f(self.y.clone()),

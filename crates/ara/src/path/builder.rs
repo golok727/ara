@@ -1,6 +1,6 @@
 use ara_math::{vec2, Corners, Rect};
 
-use super::{Path, PathEventsIter, PathVerb, Point, Polygon};
+use super::{Path, PathEvent, PathEventsIter, PathVerb, Point, Polygon};
 
 #[derive(Debug, Clone, Copy, Default, Hash, PartialEq, PartialOrd, Eq)]
 pub struct Contour(pub(crate) usize);
@@ -9,7 +9,7 @@ impl Contour {
     pub const INVALID: Contour = Contour(0);
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PathBuilder {
     pub(crate) points: Vec<Point>,
     pub(crate) verbs: Vec<PathVerb>,
@@ -27,18 +27,45 @@ impl PathBuilder {
         }
     }
 
-    pub fn extend(&mut self, other: &Path) {
-        if other.points.is_empty() {
-            return;
-        }
+    pub fn clear(&mut self) {
+        self.points.clear();
+        self.verbs.clear();
+        self.validator = DebugPathValidator::default();
+    }
 
-        #[cfg(debug_assertions)]
-        if self.validator.in_subpath {
-            panic!("Cannot extend path while in a subpath. Call end() or close() first.");
+    pub fn extend<Events>(&mut self, other: Events)
+    where
+        Events: IntoIterator<Item = PathEvent>,
+    {
+        for event in other.into_iter() {
+            match event {
+                PathEvent::Begin { at } => {
+                    self.begin(at);
+                }
+                PathEvent::Line { from: _, to } => {
+                    self.line_to(to);
+                }
+                PathEvent::Quadratic { from: _, ctrl, to } => {
+                    self.quadratic_to(ctrl, to);
+                }
+                PathEvent::Cubic {
+                    from: _,
+                    ctrl1,
+                    ctrl2,
+                    to,
+                } => {
+                    self.cubic_to(ctrl1, ctrl2, to);
+                }
+                PathEvent::End {
+                    contour: _,
+                    last: _,
+                    close,
+                    first: _,
+                } => {
+                    self.end(close);
+                }
+            }
         }
-
-        self.points.extend_from_slice(&other.points);
-        self.verbs.extend_from_slice(&other.verbs);
     }
 
     pub fn begin(&mut self, at: Point) {
@@ -317,7 +344,7 @@ fn check_is_nan(p: Point) {
     debug_assert!(p.y.is_finite());
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct DebugPathValidator {
     #[cfg(debug_assertions)]
     in_subpath: bool,
@@ -518,6 +545,65 @@ mod tests {
                 PathVerb::Close,
             ]
         );
+    }
+
+    #[test]
+    fn path_builder_extend() {
+        // Create the first path
+        let mut path1 = Path::builder();
+        path1.begin(vec2(0.0, 0.0));
+        path1.line_to(vec2(10.0, 0.0));
+        path1.line_to(vec2(10.0, 10.0));
+        path1.end(true);
+
+        // Create a second path to be used as source for events
+        let mut path2 = Path::builder();
+        path2.begin(vec2(20.0, 20.0));
+        path2.line_to(vec2(30.0, 20.0));
+        path2.quadratic_to(vec2(35.0, 25.0), vec2(30.0, 30.0));
+        path2.cubic_to(vec2(25.0, 35.0), vec2(20.0, 35.0), vec2(20.0, 30.0));
+        path2.end(true);
+
+        // Create a third path and extend it with events from the first two
+        let mut combined = Path::builder();
+        combined.extend(path1.path_events());
+        combined.extend(path2.path_events());
+
+        let result = combined.build();
+
+        // Expected points based on the operations
+        let expected_points = vec![
+            // First path
+            vec2(0.0, 0.0),   // begin
+            vec2(10.0, 0.0),  // line_to
+            vec2(10.0, 10.0), // line_to
+            vec2(0.0, 0.0),   // close
+            // Second path
+            vec2(20.0, 20.0), // begin
+            vec2(30.0, 20.0), // line_to
+            vec2(35.0, 25.0), // quadratic control point
+            vec2(30.0, 30.0), // quadratic end point
+            vec2(25.0, 35.0), // cubic control point 1
+            vec2(20.0, 35.0), // cubic control point 2
+            vec2(20.0, 30.0), // cubic end point
+            vec2(20.0, 20.0), // close
+        ];
+
+        // Expected verbs
+        let expected_verbs = vec![
+            PathVerb::Begin,
+            PathVerb::LineTo,
+            PathVerb::LineTo,
+            PathVerb::Close,
+            PathVerb::Begin,
+            PathVerb::LineTo,
+            PathVerb::QuadraticTo,
+            PathVerb::CubicTo,
+            PathVerb::Close,
+        ];
+
+        assert_eq!(result.points.as_ref(), expected_points.as_slice());
+        assert_eq!(result.verbs.as_ref(), expected_verbs.as_slice());
     }
 
     #[test]

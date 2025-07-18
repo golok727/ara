@@ -3,13 +3,13 @@ use anyhow::Result;
 
 use super::Canvas;
 
-pub trait RenderContext {
+pub trait CanvasRenderTarget {
     type PaintOutput;
     const LABEL: &'static str;
 
     fn paint(&mut self, canvas: &mut Canvas) -> Result<Self::PaintOutput>;
-    fn configure(&mut self, gpu: &Context, config: &RenderContextConfig);
-    fn get_config(&self) -> RenderContextConfig;
+    fn configure(&mut self, gpu: &Context, config: &CanvasRenderTargetDescriptor);
+    fn get_config(&self) -> CanvasRenderTargetDescriptor;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,7 +20,7 @@ pub enum MsaaSampleLevel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RenderContextConfig {
+pub struct CanvasRenderTargetDescriptor {
     pub width: u32,
     pub height: u32,
     pub format: gpu::TextureFormat,
@@ -28,7 +28,7 @@ pub struct RenderContextConfig {
     pub(crate) msaa_sample_count: u32,
 }
 
-impl RenderContextConfig {
+impl CanvasRenderTargetDescriptor {
     pub fn new() -> Self {
         Self::default()
     }
@@ -59,7 +59,7 @@ impl RenderContextConfig {
     }
 }
 
-impl Default for RenderContextConfig {
+impl Default for CanvasRenderTargetDescriptor {
     fn default() -> Self {
         Self {
             width: 1,
@@ -73,7 +73,7 @@ impl Default for RenderContextConfig {
 
 pub fn create_msaa_view(
     device: &wgpu::Device,
-    config: &RenderContextConfig,
+    config: &CanvasRenderTargetDescriptor,
 ) -> Option<wgpu::TextureView> {
     (config.msaa_sample_count > 1).then(|| {
         let texture_format = config.format;

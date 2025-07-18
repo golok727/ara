@@ -2,6 +2,8 @@ use ara::Context;
 use pollster::FutureExt;
 
 mod basic;
+mod graphics;
+
 struct Example {
     name: &'static str,
     run: fn(gpu: ara::Context) -> (),
@@ -35,13 +37,11 @@ fn main() {
             std::process::exit(1);
         });
 
-    let gpu = Context::new(
-        &(ara::gpu::ContextSpecification {
-            power_preference: ara::gpu::PowerPreference::HighPerformance,
-            backends: ara::gpu::Backends::all(),
-            ..Default::default()
-        })
-    )
+    let gpu = Context::new(ara::gpu::ContextSpecification {
+        power_preference: ara::gpu::PowerPreference::HighPerformance,
+        backends: ara::gpu::Backends::all(),
+        ..Default::default()
+    })
         .block_on()
         .expect("Failed to create GPU context");
 

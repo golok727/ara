@@ -13,6 +13,12 @@ pub struct Size<T> {
     pub height: T,
 }
 
+impl<T> From<(T, T)> for Size<T> {
+    fn from((width, height): (T, T)) -> Self {
+        Self { width, height }
+    }
+}
+
 impl<T> Size<T> {
     pub fn new(width: T, height: T) -> Self {
         Self { width, height }
@@ -102,11 +108,14 @@ where
     }
 }
 
-impl<T> Size<T> {
-    pub fn map<U>(&self, f: impl Fn(&T) -> U) -> Size<U> {
+impl<T> Size<T>
+where
+    T: Clone,
+{
+    pub fn map<U>(&self, f: impl Fn(T) -> U) -> Size<U> {
         Size {
-            width: f(&self.width),
-            height: f(&self.height),
+            width: f(self.width.clone()),
+            height: f(self.height.clone()),
         }
     }
 }
@@ -224,6 +233,29 @@ where
         Self {
             width: self.width.clone() * sw.clone(),
             height: self.height.clone() * sh.clone(),
+        }
+    }
+}
+
+impl Size<f32> {
+    pub fn floor(&self) -> Self {
+        Size {
+            width: self.width.floor(),
+            height: self.height.floor(),
+        }
+    }
+
+    pub fn ceil(&self) -> Self {
+        Size {
+            width: self.width.ceil(),
+            height: self.height.ceil(),
+        }
+    }
+
+    pub fn round(&self) -> Self {
+        Size {
+            width: self.width.round(),
+            height: self.height.round(),
         }
     }
 }

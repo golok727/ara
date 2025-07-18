@@ -12,7 +12,7 @@ pub fn run(gpu: Context) {
 
     let mut context = canvas.create_offscreen_context();
 
-    let size = canvas.screen().map(|v| *v as f32);
+    let size = canvas.screen().map(|v| v as f32);
 
     let rect = Rect::xywh(size.width.half(), size.height.half(), 500.0, 500.0).centered();
 
